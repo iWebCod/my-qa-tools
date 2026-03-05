@@ -1,0 +1,1920 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%230d0f14'/><rect x='3' y='3' width='26' height='26' rx='5' fill='none' stroke='%234f8fff' stroke-width='2'/><text x='16' y='22' font-family='monospace' font-size='16' font-weight='bold' fill='%234f8fff' text-anchor='middle'>QA</text></svg>">
+  <title>MY QA Tools</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.development.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.development.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap');
+
+    :root {
+      --bg: #0d0f14;
+      --surface: #151820;
+      --surface2: #1c2030;
+      --surface3: #232840;
+      --border: #2a3050;
+      --border2: #353d60;
+      --accent: #4f8fff;
+      --accent2: #6b4fff;
+      --success: #2ecc71;
+      --warn: #f39c12;
+      --error: #e74c3c;
+      --text: #e8ecf5;
+      --text2: #8891b0;
+      --text3: #555e80;
+      --mono: 'JetBrains Mono', monospace;
+      --sans: 'Inter', sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body, #root {
+      height: 100%;
+      overflow: hidden;
+    }
+    body {
+      font-family: var(--sans);
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+    }
+    #root {
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* TOPBAR */
+    .topbar {
+      height: 44px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      gap: 12px;
+      flex-shrink: 0;
+      z-index: 100;
+    }
+    .topbar-logo {
+      font-family: var(--mono);
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: 0.05em;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      white-space: nowrap;
+    }
+    .topbar-logo::before {
+      content: '';
+      width: 7px; height: 7px;
+      background: var(--accent);
+      border-radius: 2px;
+      box-shadow: 0 0 8px var(--accent);
+    }
+    .topbar-status {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      color: var(--text3);
+      font-family: var(--mono);
+      flex-wrap: wrap;
+    }
+    .status-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--text3);
+    }
+    .status-dot.connected { background: var(--success); box-shadow: 0 0 5px var(--success); }
+    .status-dot.error { background: var(--error); }
+
+    /* MAIN LAYOUT — занимает всё оставшееся пространство */
+    .main {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+      min-height: 0;
+    }
+
+    /* SIDEBAR */
+    .sidebar {
+      width: 210px;
+      min-width: 210px;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      overflow-y: auto;
+      padding: 10px 8px;
+    }
+    .sidebar-section { margin-bottom: 6px; }
+    .sidebar-label {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text3);
+      padding: 8px 10px 4px;
+    }
+    .sidebar-item {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 7px 10px;
+      border-radius: 7px;
+      cursor: pointer;
+      font-size: 12.5px;
+      color: var(--text2);
+      transition: all 0.12s;
+      border: 1px solid transparent;
+      background: none;
+      width: 100%;
+      text-align: left;
+      white-space: nowrap;
+    }
+    .sidebar-item:hover { background: var(--surface2); color: var(--text); }
+    .sidebar-item.active {
+      background: linear-gradient(135deg, rgba(79,143,255,0.15), rgba(107,79,255,0.1));
+      color: var(--accent);
+      border-color: rgba(79,143,255,0.2);
+    }
+    .sidebar-icon { font-size: 14px; width: 18px; text-align: center; flex-shrink: 0; }
+    .sidebar-badge {
+      margin-left: auto;
+      background: var(--surface3);
+      color: var(--text3);
+      font-size: 10px;
+      padding: 1px 5px;
+      border-radius: 8px;
+      font-family: var(--mono);
+    }
+    .sidebar-footer {
+      margin-top: auto;
+      padding-top: 10px;
+      border-top: 1px solid var(--border);
+    }
+
+    /* CONTENT */
+    .content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      min-height: 0;
+      min-width: 0;
+    }
+
+    /* PANEL — прокручивается вертикально */
+    .panel {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 24px;
+      min-height: 0;
+    }
+
+    .panel-header {
+      margin-bottom: 24px;
+    }
+    .panel-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+    .panel-sub {
+      font-size: 13px;
+      color: var(--text3);
+    }
+
+    /* FORMS */
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .form-group.full { grid-column: 1 / -1; }
+    .form-label {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text2);
+      letter-spacing: 0.02em;
+    }
+    .form-label span { color: var(--error); margin-left: 2px; }
+    .form-input {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 9px 12px;
+      font-size: 13px;
+      font-family: var(--sans);
+      color: var(--text);
+      transition: border-color 0.15s;
+      outline: none;
+    }
+    .form-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(79,143,255,0.12);
+    }
+    .form-input::placeholder { color: var(--text3); }
+    select.form-input { cursor: pointer; }
+
+    /* BUTTONS */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 20px;
+      border-radius: 8px;
+      border: none;
+      font-family: var(--sans);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+      outline: none;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: white;
+      box-shadow: 0 4px 15px rgba(79,143,255,0.25);
+    }
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(79,143,255,0.35);
+    }
+    .btn-primary:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+    .btn-secondary {
+      background: var(--surface2);
+      color: var(--text2);
+      border: 1px solid var(--border);
+    }
+    .btn-secondary:hover { background: var(--surface3); color: var(--text); }
+    .btn-danger {
+      background: rgba(231,76,60,0.15);
+      color: var(--error);
+      border: 1px solid rgba(231,76,60,0.3);
+    }
+    .btn-danger:hover { background: rgba(231,76,60,0.25); }
+    .btn-warn {
+      background: rgba(243,156,18,0.15);
+      color: var(--warn);
+      border: 1px solid rgba(243,156,18,0.3);
+    }
+    .btn-warn:hover { background: rgba(243,156,18,0.25); }
+
+    .btn-row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    /* SPINNER */
+    .spinner {
+      width: 14px; height: 14px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+      flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* LOG PANE */
+    .log-pane {
+      height: 220px;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+    }
+    .log-header {
+      padding: 8px 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .log-title {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text3);
+    }
+    .log-count {
+      font-family: var(--mono);
+      font-size: 10px;
+      background: var(--surface3);
+      color: var(--text3);
+      padding: 1px 6px;
+      border-radius: 4px;
+    }
+    .log-clear {
+      margin-left: auto;
+      font-size: 11px;
+      color: var(--text3);
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+    .log-clear:hover { background: var(--surface2); color: var(--text2); }
+    .log-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px 16px;
+      font-family: var(--mono);
+      font-size: 12px;
+    }
+    .log-entry {
+      display: flex;
+      gap: 12px;
+      padding: 2px 0;
+      line-height: 1.6;
+    }
+    .log-ts { color: var(--text3); flex-shrink: 0; font-size: 11px; }
+    .log-msg { }
+    .log-entry.info .log-msg { color: var(--text2); }
+    .log-entry.success .log-msg { color: var(--success); }
+    .log-entry.warn .log-msg { color: var(--warn); }
+    .log-entry.error .log-msg { color: var(--error); }
+    .log-entry.debug .log-msg { color: var(--text3); }
+
+    /* RBAC TABLE */
+    .rbac-wrap {
+      overflow-x: auto;
+    }
+    .rbac-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    .rbac-table th {
+      background: var(--surface2);
+      color: var(--text2);
+      font-weight: 600;
+      font-size: 11px;
+      letter-spacing: 0.05em;
+      padding: 10px 12px;
+      text-align: left;
+      border: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      white-space: nowrap;
+    }
+    .rbac-table td {
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      color: var(--text2);
+      vertical-align: top;
+    }
+    .rbac-table tr:hover td { background: rgba(79,143,255,0.04); }
+    .rbac-resource {
+      font-weight: 600;
+      color: var(--text);
+    }
+    .rbac-action {
+      color: var(--text2);
+      padding-left: 8px;
+    }
+    .badge {
+      display: inline-block;
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .badge-yes { background: rgba(46,204,113,0.15); color: var(--success); border: 1px solid rgba(46,204,113,0.3); }
+    .badge-no { background: rgba(85,94,128,0.2); color: var(--text3); border: 1px solid var(--border); }
+    .badge-partial { background: rgba(243,156,18,0.12); color: var(--warn); border: 1px solid rgba(243,156,18,0.3); }
+
+    /* FILTER BAR */
+    .filter-bar {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+    .filter-bar .form-input {
+      width: auto;
+      flex: 1;
+      min-width: 180px;
+    }
+
+    /* SETTINGS */
+    .settings-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      max-width: 600px;
+      margin-bottom: 20px;
+    }
+    .settings-card-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* CARD */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+    .card-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .card-title-icon { font-size: 16px; }
+
+    /* PILLS */
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 500;
+    }
+    .pill-info { background: rgba(79,143,255,0.12); color: var(--accent); border: 1px solid rgba(79,143,255,0.25); }
+    .pill-success { background: rgba(46,204,113,0.12); color: var(--success); border: 1px solid rgba(46,204,113,0.25); }
+    .pill-error { background: rgba(231,76,60,0.12); color: var(--error); border: 1px solid rgba(231,76,60,0.25); }
+
+    /* SCROLLBAR */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text3); }
+
+    /* ENV switcher */
+    .env-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 20px;
+      height: 36px;
+      background: var(--surface2);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .env-label { font-size: 11px; color: var(--text3); font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; }
+    .env-pill {
+      padding: 3px 12px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text3);
+      transition: all 0.12s;
+      font-family: var(--mono);
+    }
+    .env-pill:hover { border-color: var(--border2); color: var(--text2); }
+    .env-pill.active { background: rgba(79,143,255,0.15); border-color: rgba(79,143,255,0.4); color: var(--accent); }
+    .env-pill.dev.active { background: rgba(46,204,113,0.1); border-color: rgba(46,204,113,0.4); color: var(--success); }
+    .env-pill.stage.active { background: rgba(243,156,18,0.1); border-color: rgba(243,156,18,0.4); color: var(--warn); }
+    .env-pill.prod.active { background: rgba(231,76,60,0.1); border-color: rgba(231,76,60,0.4); color: var(--error); }
+    .env-add { background: none; border: 1px dashed var(--border); color: var(--text3); border-radius: 20px; padding: 3px 10px; font-size: 11px; cursor: pointer; }
+    .env-add:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* DATA GEN */
+    .gen-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    .gen-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .gen-card-header {
+      background: var(--surface2);
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+    }
+    .gen-card-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .gen-card-body {
+      padding: 12px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .gen-field {
+      display: grid;
+      grid-template-columns: 140px 1fr auto;
+      align-items: center;
+      gap: 8px;
+    }
+    .gen-field-label {
+      font-size: 11px;
+      color: var(--text3);
+      font-weight: 500;
+    }
+    .gen-field-val {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--text2);
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      padding: 4px 8px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .gen-field-val.editable {
+      cursor: text;
+      outline: none;
+    }
+    .gen-field-val.editable:focus {
+      border-color: var(--accent);
+      color: var(--text);
+    }
+    .gen-copy {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--text3);
+      font-size: 13px;
+      padding: 2px 4px;
+      border-radius: 4px;
+      transition: all 0.1s;
+    }
+    .gen-copy:hover { background: var(--surface3); color: var(--text); }
+    .gen-copy.copied { color: var(--success); }
+
+    .gen-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      padding: 12px 16px;
+      border-top: 1px solid var(--border);
+      background: var(--surface2);
+    }
+
+    .use-btn {
+      font-size: 11px;
+      padding: 5px 12px;
+      border-radius: 6px;
+      border: 1px solid rgba(79,143,255,0.3);
+      background: rgba(79,143,255,0.1);
+      color: var(--accent);
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.12s;
+    }
+    .use-btn:hover { background: rgba(79,143,255,0.2); }
+
+    .valid-badge {
+      font-size: 10px;
+      font-weight: 600;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+    .valid-badge.ok { background: rgba(46,204,113,0.12); color: var(--success); border: 1px solid rgba(46,204,113,0.3); }
+    .valid-badge.err { background: rgba(231,76,60,0.12); color: var(--error); border: 1px solid rgba(231,76,60,0.3); }
+
+    .gen-toolbar {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+
+    .tab-badge {
+      font-size: 10px;
+      background: rgba(79,143,255,0.2);
+      color: var(--accent);
+      border-radius: 10px;
+      padding: 1px 6px;
+      margin-left: 4px;
+    }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback, useMemo } = React;
+
+// ═══════════════════════════════════════════════════════════════
+// DATA GENERATOR (ported from Postman pre-request script)
+// ═══════════════════════════════════════════════════════════════
+function r(m,M){return Math.floor(Math.random()*(M-m+1))+m;}
+function p(n,w){return n.toString().padStart(w,"0");}
+function g(a){return a[r(0,a.length-1)];}
+function translit(str){const map={"а":"a","б":"b","в":"v","г":"g","д":"d","е":"e","ё":"e","ж":"zh","з":"z","и":"i","й":"y","к":"k","л":"l","м":"m","н":"n","о":"o","п":"p","р":"r","с":"s","т":"t","у":"u","ф":"f","х":"kh","ц":"ts","ч":"ch","ш":"sh","щ":"shch","ъ":"","ы":"y","ь":"","э":"e","ю":"yu","я":"ya"};return String(str).toLowerCase().split("").map(c=>map[c]??c).join("");}
+function dateIso(d){return `${d.getFullYear()}-${p(d.getMonth()+1,2)}-${p(d.getDate(),2)}`;}
+function dateFormat(d){return `${p(d.getDate(),2)}.${p(d.getMonth()+1,2)}.${d.getFullYear()}`;}
+function futureDateIso(da){const d=new Date();d.setDate(d.getDate()+da);return d.toISOString();}
+function pastDateIso(da){const d=new Date();d.setDate(d.getDate()-da);return d.toISOString();}
+function validSnils(sn){if(!/^\d{11}$/.test(sn))return false;const n=sn.slice(0,9).split("").map(Number);const ctrl=parseInt(sn.slice(9),10);let sum=n.reduce((s,x,i)=>s+x*(9-i),0);if(sum<100)return sum===ctrl;if(sum===100)return ctrl===0;return sum%101%100===ctrl;}
+function validInn12(inn){if(!/^\d{12}$/.test(inn))return false;const d=inn.split("").map(Number);const c1=(d.slice(0,10).reduce((s,x,i)=>s+x*[7,2,4,10,3,5,9,4,6,8][i],0)%11)%10;const c2=(d.slice(0,11).reduce((s,x,i)=>s+x*[3,7,2,4,10,3,5,9,4,6,8][i],0)%11)%10;return c1===d[10]&&c2===d[11];}
+function validInn10(inn){if(!/^\d{10}$/.test(inn))return false;const d=inn.split("").map(Number);const c=(d.slice(0,9).reduce((s,x,i)=>s+x*[2,4,10,3,5,9,4,6,8][i],0)%11)%10;return c===d[9];}
+function validOgrn(ogrn){if(!/^\d{13}$/.test(ogrn))return false;const n=BigInt(ogrn.slice(0,12));return Number(n%11n%10n)===+ogrn[12];}
+function validKpp(kpp){return /^\d{9}$/.test(kpp);}
+function genSnils(){let n="";for(let i=0;i<9;i++)n+=r(0,9);let sum=0;for(let i=0;i<9;i++)sum+=+n[i]*(9-i);let c=sum%101;if(c===100)c=0;return n+c.toString().padStart(2,"0");}
+function genInn12(){function m(x){return x%11%10}const a=[r(1,9)];for(let i=0;i<9;i++)a.push(r(0,9));const w1=[7,2,4,10,3,5,9,4,6,8];let s1=0;for(let i=0;i<10;i++)s1+=w1[i]*a[i];a.push(m(s1));const w2=[3,7,2,4,10,3,5,9,4,6,8];let s2=0;for(let i=0;i<11;i++)s2+=w2[i]*a[i];a.push(m(s2));return a.join``;}
+function toFemalePat(m){if(/ьевич$/.test(m))return m.replace(/ьевич$/,"ьевна");if(/ович$/.test(m))return m.replace(/ович$/,"овна");if(/евич$/.test(m))return m.replace(/евич$/,"евна");return m.replace(/ич$/,"ична");}
+const REGIONS=["01","02","03","04","05","06","07","08","09","10","11","12","13","14","15","16","17","18","19","20","21","22","23","24","25","26","27","28","29","30","31","32","33","34","35","36","37","38","39","40","41","42","43","44","45","46","47","48","49","50","51","52","53","54","55","56","57","58","59","60","61","62","63","64","65","66","67","68","69","70","71","72","73","74","75","76","77","78","79","83","86","87","89","92"];
+function inn10R(reg){const d=[+reg[0],+reg[1],r(0,9),r(0,9)];for(let i=0;i<5;i++)d.push(r(0,9));const w=[2,4,10,3,5,9,4,6,8];const c=(d.reduce((s,x,i)=>s+x*w[i],0)%11)%10;d.push(c);return d.join("");}
+function kppR(reg){return reg+p(r(0,99),2)+p(r(1,99),2)+p(r(1,999),3);}
+function ogrn13(yr,reg){let b="1"+p(yr%100,2)+reg+p(r(0,9999999),7);return b+(BigInt(b)%11n%10n).toString();}
+function regDateFromOgrn(ogrn){const yy=parseInt(String(ogrn).slice(1,3),10);const year=(yy<=(new Date().getFullYear()%100)?2000+yy:1900+yy);const d=new Date(year,r(0,11),r(1,28));return dateIso(d);}
+function makeShortName(full){const m=String(full).match(/^(ООО)\s+"(.+)"$/i);if(!m)return full;const name=m[2].toLowerCase().replace(/(^|\s|-)([а-яa-zё])/g,(a,sep,ch)=>sep+ch.toUpperCase());return `${m[1].toUpperCase()} "${name}"`;}
+function randomAddr(){const cities=["Ижевск","Москва","Казань","Екатеринбург","Самара","Пермь","Уфа","Тверь","Тула","Омск","Воронеж","Краснодар","Ростов-на-Дону","Новосибирск","Санкт-Петербург"];const streets=["Коммунаров","Ленина","Советская","Мира","Пушкина","Гагарина","Кирова","Парковая","Центральная","Молодёжная","Октябрьская","Набережная","Зелёная"];return `г ${g(cities)}, ул ${g(streets)}, д. ${r(1,300)}, оф. ${r(1,500)}`;}
+
+function generatePerson(){
+  const fm=["Александр","Дмитрий","Максим","Сергей","Иван","Андрей","Алексей","Николай","Михаил","Егор","Кирилл","Олег","Владимир","Павел","Руслан","Роман","Евгений","Матвей","Денис","Лев","Пётр","Григорий","Анатолий","Тимофей","Василий","Даниил","Глеб","Яков","Артём","Семён"];
+  const ff=["Анна","Мария","Екатерина","Ирина","Юлия","Ольга","Наталья","Татьяна","Светлана","Елена","Ксения","Алиса","Виктория","Дарья","Полина","Вероника","Анастасия","Надежда","Яна","Милана","Валентина","Лилия","Карина","Варвара","Елизавета","Жанна","Алёна","Зоя","Ангелина","Нина"];
+  const lm=["Иванов","Петров","Сидоров","Смирнов","Кузнецов","Соколов","Попов","Лебедев","Козлов","Новиков","Морозов","Егоров","Соловьёв","Васильев","Зайцев","Павлов","Семёнов","Голубев","Богданов","Воробьёв","Фёдоров","Михайлов","Беляев","Тарасов","Власов","Фомин","Сергеев","Макаров","Никитин","Орлов"];
+  const lf=lm.map(x=>x+"а");
+  const mm=["Александрович","Дмитриевич","Сергеевич","Андреевич","Иванович","Николаевич","Петрович","Михайлович","Фёдорович","Григорьевич","Васильевич","Владимирович","Юрьевич","Олегович","Романович","Евгеньевич","Викторович","Геннадьевич","Борисович","Константинович","Тимофеевич","Данилович","Глебович","Леонидович","Гаврилович","Степанович","Матвеевич","Савельевич","Яковлевич","Маркович"];
+  const mf=mm.map(toFemalePat);
+  const iss=Array.from({length:50},(_,i)=>`ОУФМС по г. Город${i+1}`);
+  const male=Math.random()<0.5;
+  const first=male?g(fm):g(ff);
+  const last=male?g(lm):g(lf);
+  const middle=male?g(mm):g(mf);
+  const domain=g(["mail.ru","yandex.ru","google.com","yahoo.com"]);
+  const birth=new Date();birth.setFullYear(birth.getFullYear()-r(20,60));
+  const minIssue=new Date(birth);minIssue.setFullYear(minIssue.getFullYear()+14);
+  const issue=new Date(r(minIssue.getTime(),Date.now()));
+  let snils,inn;
+  do{snils=genSnils();}while(!validSnils(snils));
+  do{inn=genInn12();}while(!validInn12(inn));
+  const doc_series=p(r(1000,9999),4);
+  const doc_number=p(r(1,999999),6);
+  const email=`${translit(last)}.${translit(first[0])}${r(10,99)}@${domain}`;
+  const blockReasons=["Нарушение политики безопасности","Подозрительная активность","Запрос администратора","Превышение лимита попыток входа","Несанкционированный доступ","Плановая проверка"];
+  const blockComments=["Требуется дополнительная верификация","Блокировка до выяснения обстоятельств","Временная мера безопасности","Ожидается подтверждение от пользователя","Профилактические меры","Зафиксировано нарушение правил"];
+  return {lastName:last,firstName:first,middleName:middle,email,login:email.split("@")[0],birthday:dateIso(birth),phone:`+7${r(9000000000,9999999999)}`,snils,inn,doc_series,doc_number,doc_seriesNumber:`${doc_series} ${doc_number}`,doc_type:"21",doc_nationality:"643",doc_birthDate:dateFormat(birth),doc_issueDate:dateFormat(issue),doc_issuerCode:`${p(r(100,999),3)}-${p(r(100,999),3)}`,doc_issuer:g(iss),block_future_endDate:futureDateIso(r(1,90)),block_reason:g(blockReasons),block_comment:g(blockComments),unblock_startDate:pastDateIso(r(1,365))};
+}
+
+function generateOrg(type){
+  const orgs=Array.from({length:10},(_,i)=>`ООО "ОРГАНИЗАЦИЯ ${i+1}"`);
+  const positions=Array.from({length:10},(_,i)=>`Должность ${i+1}`);
+  const departments=Array.from({length:10},(_,i)=>`Отдел ${i+1}`);
+  const full=g(orgs);
+  const region=g(REGIONS);
+  const curYear=new Date().getFullYear();
+  const year=r(curYear-20,curYear);
+  let inn10,kpp,ogrn=null,regDate;
+  do{inn10=inn10R(region);}while(!validInn10(inn10));
+  do{kpp=kppR(region);}while(!validKpp(kpp));
+  if(type==="juristic"){let og;do{og=ogrn13(year,region);}while(!validOgrn(og));ogrn=og;regDate=regDateFromOgrn(ogrn);}
+  else{const d=new Date();d.setFullYear(d.getFullYear()-r(1,15));d.setMonth(r(0,11));d.setDate(r(1,28));regDate=dateIso(d);}
+  return {fullName:full,shortName:makeShortName(full),type,orgInn:inn10,kpp,address:randomAddr(),registrationDate:regDate,positionName:g(positions),departmentName:g(departments),...(ogrn?{ogrn}:{})};
+}
+
+function generateAllBundles(){
+  return {person1:generatePerson(),person2:generatePerson(),org1:generateOrg("juristic"),org2:generateOrg("separate_juristic")};
+}
+
+// ─── PERSISTENCE ─────────────────────────────────────────────────────────
+const LS_BUNDLES = "xidbox_qa_bundles";
+const LS_ENVS    = "xidbox_qa_envs";
+const LS_ENV_ID  = "xidbox_qa_active_env";
+
+const DEFAULT_ENVS = [
+  {id:"dev",  label:"dev",  baseUrl:"",login:"",password:""},
+  {id:"stage",label:"stage",baseUrl:"",login:"",password:""},
+  {id:"prod", label:"prod", baseUrl:"",login:"",password:""},
+];
+
+function lsGet(k,def){try{const v=localStorage.getItem(k);return v?JSON.parse(v):def;}catch{return def;}}
+function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch{}}
+
+// ─── RBAC DATA ────────────────────────────────────────────────────────────
+const ROLES = ['Анон', 'Пользователь', 'Сист.Адм', 'Адм ИБ', 'Менеджер ИС', 'Гл.Мен.УЗ', 'Менеджер УЗ'];
+const RBAC = [
+  {resource:'Учётная запись',action:'Просмотр карточки УЗ',perms:['Нет','Только свою','Да','Да','Есть роль в ИС','Да','Своя орг']},
+  {resource:'Учётная запись',action:'Просмотр динамических полей',perms:['Нет','Только свою','Да','Да','Есть роль в ИС','Да','Своя орг']},
+  {resource:'Учётная запись',action:'Просмотр списка УЗ',perms:['Нет','Нет','Да','Да','Есть роль в ИС','Да','Своя орг']},
+  {resource:'Учётная запись',action:'Загрузка файла пользователей',perms:['Нет','Нет','Да','Нет','Нет','Да','Нет']},
+  {resource:'Учётная запись',action:'Выгрузка списка пользователей',perms:['Нет','Нет','Да','Да','Да','Да','Своя орг']},
+  {resource:'Учётная запись',action:'Редактирование УЗ',perms:['Нет','Только свою','Нет','Нет','Нет','Да','Своя орг']},
+  {resource:'Учётная запись',action:'Загрузка файла ролей',perms:['Нет','Нет','Нет','Нет','Нет','Только не X-IDBOX','Нет']},
+  {resource:'Учётная запись',action:'Блокировка (временная/постоянная)',perms:['Нет','Нет','Да (кроме себя)','Да (кроме себя)','Нет','Да (кроме себя)','Своя орг']},
+  {resource:'Учётная запись',action:'Разблокировка',perms:['Нет','Нет','Да (кроме себя)','Да (кроме себя)','Нет','Да (кроме себя)','Своя орг']},
+  {resource:'Учётная запись',action:'Сброс пароля с запретом по старому',perms:['Только со стр.входа','Нет','Да (кроме себя)','Да (кроме себя)','Нет','Да (кроме себя)','Своя орг']},
+  {resource:'Учётная запись',action:'Регистрация новой УЗ',perms:['Только со стр.входа','Нет','Да','Нет','Нет','Да','Своя орг']},
+  {resource:'Учётная запись',action:'Удаление УЗ',perms:['Нет','Нет','Нет','Нет','Нет','Да (кроме себя)','Нет']},
+  {resource:'Организации',action:'Просмотр карточки',perms:['Нет','Есть профиль','Да','Да','Нет','Да','Своя орг']},
+  {resource:'Организации',action:'Просмотр списка',perms:['Нет','Нет','Да','Да','Нет','Да','Своя орг']},
+  {resource:'Организации',action:'Выгрузка списка',perms:['Нет','Нет','Да','Да','Нет','Да','Своя орг']},
+  {resource:'Организации',action:'Загрузка файла организаций',perms:['Нет','Нет','Да','Нет','Нет','Да','Нет']},
+  {resource:'Организации',action:'Загрузка дельт динамических полей',perms:['Нет','Нет','Да','Нет','Нет','Да','Нет']},
+  {resource:'Профиль УЗ',action:'Просмотр карточки',perms:['Нет','Только свои','Да','Да','Есть роль в ИС','Да','Своя орг']},
+  {resource:'Профиль УЗ',action:'Просмотр списка',perms:['Нет','Нет','Да','Да','Да','Да','Своя орг']},
+  {resource:'Профиль УЗ',action:'Регистрация профиля',perms:['Нет','Нет','Да','Нет','Нет','Да','Своя орг']},
+  {resource:'Профиль УЗ',action:'Загрузка файла профилей',perms:['Нет','Нет','Нет','Нет','Нет','Да','Нет']},
+  {resource:'Профиль УЗ',action:'Выгрузка списка профилей',perms:['Нет','Нет','Да','Да','Да','Да','Своя орг']},
+  {resource:'Профиль УЗ',action:'Блокировка профиля',perms:['Нет','Нет','Да (кроме своих)','Да (кроме своих)','Нет','Да (кроме своих)','Своя орг']},
+  {resource:'Профиль УЗ',action:'Разблокировка профиля',perms:['Нет','Нет','Чужие в активной орг','Чужие в активной орг','Нет','Чужие в активной орг','Своя орг']},
+  {resource:'Профиль УЗ',action:'Назначение/снятие ролей',perms:['Нет','Только свой','Да','Нет','Нет','Да','Своя орг']},
+  {resource:'Профиль УЗ',action:'Назначение/снятие должностей',perms:['Нет','Только свой','Нет','Нет','Нет','Да','Своя орг']},
+  {resource:'Профиль УЗ',action:'Завершение активных сессий',perms:['Нет','Только свои (без заявки)','Да (через заявку)','Да (через заявку)','Нет','Нет','Нет']},
+  {resource:'Заявки',action:'Просмотр карточки',perms:['Нет','Свои заявки','Да (все)','Да (все)','По ИС','Да (все)','Своя орг']},
+  {resource:'Заявки',action:'Просмотр списка',perms:['Нет','Да','Да','Да','Да','Да','Да']},
+  {resource:'Заявки',action:'Согласование/утверждение/отклонение',perms:['Нет','Нет','Нет','Если исполнитель','Если исполнитель','При отсутствии Мен.УЗ','Если исполнитель']},
+  {resource:'Заявки',action:'Выгрузка списка заявок',perms:['Нет','Да','Да','Да','Да','Да','Да']},
+];
+
+// ─── BACKEND API ─────────────────────────────────────────────────────────
+const API_BASE = 'http://localhost:3001';
+async function apiPost(path, body){const r=await fetch(`${API_BASE}${path}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});return r.json();}
+async function apiGet(path){const r=await fetch(`${API_BASE}${path}`);return r.json();}
+
+// ─── SMALL COMPONENTS ─────────────────────────────────────────────────────
+function LogEntry({entry}){
+  const ts=entry.ts?new Date(entry.ts).toLocaleTimeString('ru-RU',{hour12:false}):'';
+  return <div className={`log-entry ${entry.level}`}><span className="log-ts">{ts}</span><span className="log-msg">{entry.message}</span></div>;
+}
+function PermBadge({val}){
+  if(!val||val==='Нет') return <span className="badge badge-no">Нет</span>;
+  if(val==='Да'||val==='Да (все)') return <span className="badge badge-yes">Да</span>;
+  return <span className="badge badge-partial">{val}</span>;
+}
+
+function CopyBtn({text}){
+  const [copied,setCopied]=useState(false);
+  const copy=()=>{navigator.clipboard.writeText(String(text)).then(()=>{setCopied(true);setTimeout(()=>setCopied(false),1500);});};
+  return <button className={`gen-copy ${copied?'copied':''}`} onClick={copy} title="Копировать">{copied?'✓':'⧉'}</button>;
+}
+
+// ─── SETTINGS PAGE ────────────────────────────────────────────────────────
+function SettingsPage({envs,setEnvs,activeEnvId,setActiveEnvId,hiddenTabs=[],toggleHideTab=()=>{},allTabs=[]}){
+  const [editId,setEditId]=useState(activeEnvId);
+  const env=envs.find(e=>e.id===editId)||envs[0];
+  const [form,setForm]=useState({...env});
+  const [newLabel,setNewLabel]=useState('');
+  const [saved,setSaved]=useState(false);
+
+  useEffect(()=>{const e=envs.find(e=>e.id===editId)||envs[0];setForm({...e});},[editId,envs]);
+
+  const update=(k)=>(ev)=>setForm(f=>({...f,[k]:ev.target.value}));
+  const save=()=>{const updated=envs.map(e=>e.id===editId?{...e,...form}:e);setEnvs(updated);lsSet(LS_ENVS,updated);setSaved(true);setTimeout(()=>setSaved(false),1800);};
+  const activate=()=>{setActiveEnvId(editId);lsSet(LS_ENV_ID,editId);};
+  const addEnv=()=>{if(!newLabel.trim())return;const id=`env_${Date.now()}`;const ne={id,label:newLabel.trim(),baseUrl:'',login:'',password:''};const updated=[...envs,ne];setEnvs(updated);lsSet(LS_ENVS,updated);setNewLabel('');setEditId(id);};
+  const removeEnv=(id)=>{if(envs.length<=1)return;const updated=envs.filter(e=>e.id!==id);setEnvs(updated);lsSet(LS_ENVS,updated);if(editId===id)setEditId(updated[0].id);if(activeEnvId===id){setActiveEnvId(updated[0].id);lsSet(LS_ENV_ID,updated[0].id);}};
+
+  const isActive=editId===activeEnvId;
+  const envLabel=env?.label||'';
+
+  return (
+    <div className="panel">
+      <div className="panel-header">
+        <div className="panel-title">Настройки подключения</div>
+        <div className="panel-sub">Окружения и учётные данные для стендов XIDBOX</div>
+      </div>
+
+      {/* Env list */}
+      <div className="settings-card">
+        <div className="settings-card-title">🌍 Окружения</div>
+        <div style={{display:'flex',gap:8,flexWrap:'wrap',marginBottom:16}}>
+          {envs.map(e=>(
+            <div key={e.id} style={{display:'flex',alignItems:'center',gap:4}}>
+              <button className={`env-pill ${e.label} ${editId===e.id?'active':''}`} onClick={()=>setEditId(e.id)}>
+                {e.id===activeEnvId?'▶ ':''}{e.label}
+              </button>
+              {envs.length>1&&<button style={{background:'none',border:'none',color:'var(--text3)',cursor:'pointer',fontSize:12}} onClick={()=>removeEnv(e.id)} title="Удалить">✕</button>}
+            </div>
+          ))}
+          <div style={{display:'flex',gap:6,alignItems:'center'}}>
+            <input className="form-input" placeholder="новое окружение" value={newLabel} onChange={e=>setNewLabel(e.target.value)} onKeyDown={e=>e.key==='Enter'&&addEnv()} style={{width:140,padding:'4px 8px',fontSize:12}} />
+            <button className="env-add" onClick={addEnv}>+ добавить</button>
+          </div>
+        </div>
+      </div>
+
+      {/* Env edit */}
+      <div className="settings-card">
+        <div className="settings-card-title">
+          ✏️ Редактировать: <span style={{color:'var(--accent)',marginLeft:6,fontFamily:'var(--mono)'}}>{envLabel}</span>
+          {isActive && <span className="pill pill-success" style={{marginLeft:10,fontSize:10}}>активное</span>}
+        </div>
+        <div className="form-grid">
+          <div className="form-group">
+            <label className="form-label">Метка окружения</label>
+            <input className="form-input" placeholder="dev" value={form.label||''} onChange={update('label')} />
+          </div>
+          <div className="form-group full">
+            <label className="form-label">Base URL <span>*</span></label>
+            <input className="form-input" placeholder="https://xidbox.example.com" value={form.baseUrl||''} onChange={update('baseUrl')} />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Логин <span>*</span></label>
+            <input className="form-input" placeholder="admin" value={form.login||''} onChange={update('login')} />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Пароль <span>*</span></label>
+            <input className="form-input" type="password" placeholder="••••••••" value={form.password||''} onChange={update('password')} />
+          </div>
+        </div>
+        <div className="btn-row">
+          <button className="btn btn-primary" onClick={save}>{saved?'✓ Сохранено':'💾 Сохранить'}</button>
+          {!isActive&&<button className="btn btn-secondary" onClick={activate}>▶ Сделать активным</button>}
+        </div>
+      </div>
+
+      {/* Menu visibility */}
+      <div className="settings-card">
+        <div className="settings-card-title">👁 Видимость пунктов меню</div>
+        <div style={{display:'flex',flexDirection:'column',gap:3}}>
+          {allTabs.filter(t=>t.id!=='settings').map(t=>(
+            <label key={t.id} style={{display:'flex',alignItems:'center',gap:10,padding:'5px 2px',cursor:'pointer',fontSize:13,color:'var(--text2)',userSelect:'none'}}>
+              <input type="checkbox" checked={!hiddenTabs.includes(t.id)} onChange={()=>toggleHideTab(t.id)} style={{accentColor:'var(--accent)',width:14,height:14,cursor:'pointer'}}/>
+              <span style={{fontSize:14,width:20,textAlign:'center'}}>{t.ico}</span>
+              <span style={{flex:1}}>{t.label}</span>
+              <span style={{fontSize:10,color:'var(--text3)',fontFamily:'var(--mono)'}}>{t.section}</span>
+            </label>
+          ))}
+        </div>
+        <div style={{fontSize:11,color:'var(--text3)',marginTop:8}}>Раздел «Настройки» всегда виден</div>
+      </div>
+
+      <div className="settings-card">
+        <div className="settings-card-title">⚙️ О инструменте</div>
+        <div style={{fontSize:13,color:'var(--text2)',lineHeight:1.9}}>
+          <div>Инструмент автоматизирует QA-действия в <strong style={{color:'var(--text)'}}>X-IDBox</strong> через Playwright — запускает headless-браузер, ходит через UI, пишет лог в реальном времени.</div>
+          <div style={{marginTop:8,color:'var(--warn)'}}>⚠ Запустите backend: <code style={{fontFamily:'var(--mono)',fontSize:11,background:'var(--surface2)',padding:'1px 6px',borderRadius:4}}>cd backend && npm start</code></div>
+          <div style={{marginTop:8,color:'var(--text3)',fontSize:12}}>Для подбора точных селекторов: <code style={{fontFamily:'var(--mono)',fontSize:11}}>npx playwright codegen &lt;BASE_URL&gt;</code></div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── DATA GENERATOR PAGE ──────────────────────────────────────────────────
+const PERSON_FIELDS = [
+  {key:'lastName',label:'Фамилия'},{key:'firstName',label:'Имя'},{key:'middleName',label:'Отчество'},
+  {key:'login',label:'Логин'},{key:'email',label:'Email'},{key:'phone',label:'Телефон'},
+  {key:'birthday',label:'Дата рождения'},{key:'snils',label:'СНИЛС'},{key:'inn',label:'ИНН'},
+  {key:'doc_seriesNumber',label:'Серия/Номер пасп.'},{key:'doc_issueDate',label:'Дата выдачи'},
+  {key:'doc_issuerCode',label:'Код подразделения'},{key:'doc_issuer',label:'Кем выдан'},
+  {key:'block_reason',label:'Причина блок.'},{key:'block_comment',label:'Комментарий'},
+];
+const ORG_FIELDS = [
+  {key:'fullName',label:'Полное наименование'},{key:'shortName',label:'Краткое наименование'},
+  {key:'type',label:'Тип'},{key:'orgInn',label:'ИНН'},{key:'kpp',label:'КПП'},
+  {key:'ogrn',label:'ОГРН'},{key:'registrationDate',label:'Дата регистрации'},
+  {key:'address',label:'Адрес'},{key:'positionName',label:'Должность'},
+  {key:'departmentName',label:'Отдел'},
+];
+
+function BundleCard({title,icon,data,setData,onUseInForm}){
+  const [editKey,setEditKey]=useState(null);
+  const fields=title.includes('Физ')||title.includes('Лицо')||title.includes('person')?PERSON_FIELDS:ORG_FIELDS;
+  const displayFields=fields.filter(f=>data&&data[f.key]!==undefined&&data[f.key]!==null);
+  
+  const updateField=(key,val)=>setData(prev=>({...prev,[key]:val}));
+
+  return (
+    <div className="gen-card">
+      <div className="gen-card-header">
+        <div className="gen-card-title">{icon} {title}</div>
+        {data && <div style={{display:'flex',gap:6,alignItems:'center'}}>
+          {data.snils&&<span className={`valid-badge ${validSnils(data.snils)?'ok':'err'}`}>СНИЛС {validSnils(data.snils)?'✓':'✗'}</span>}
+          {data.inn&&data.inn.length===12&&<span className={`valid-badge ${validInn12(data.inn)?'ok':'err'}`}>ИНН {validInn12(data.inn)?'✓':'✗'}</span>}
+          {data.orgInn&&<span className={`valid-badge ${validInn10(data.orgInn)?'ok':'err'}`}>ИНН {validInn10(data.orgInn)?'✓':'✗'}</span>}
+          {data.ogrn&&<span className={`valid-badge ${validOgrn(data.ogrn)?'ok':'err'}`}>ОГРН {validOgrn(data.ogrn)?'✓':'✗'}</span>}
+          {data.kpp&&<span className={`valid-badge ${validKpp(data.kpp)?'ok':'err'}`}>КПП {validKpp(data.kpp)?'✓':'✗'}</span>}
+        </div>}
+      </div>
+      <div className="gen-card-body">
+        {!data && <div style={{color:'var(--text3)',fontSize:13,padding:'8px 0'}}>Нажмите «Сгенерировать» для создания данных</div>}
+        {data && displayFields.map(f=>(
+          <div className="gen-field" key={f.key}>
+            <span className="gen-field-label">{f.label}</span>
+            <span
+              className="gen-field-val editable"
+              contentEditable
+              suppressContentEditableWarning
+              onBlur={e=>updateField(f.key,e.target.innerText)}
+              dangerouslySetInnerHTML={{__html:String(data[f.key]||'')}}
+            />
+            <CopyBtn text={data[f.key]} />
+          </div>
+        ))}
+      </div>
+      {data && onUseInForm && (
+        <div className="gen-actions">
+          <button className="use-btn" onClick={()=>onUseInForm('user_create',data)}>→ В форму пользователя</button>
+          {data.fullName && <button className="use-btn" onClick={()=>onUseInForm('org_create',data)}>→ В форму организации</button>}
+          <CopyBtn text={JSON.stringify(data,null,2)} />
+          <span style={{fontSize:11,color:'var(--text3)',marginLeft:4}}>JSON</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DataGenPage({ onUseInForm, bundles: externalBundles, setBundles: setExternalBundles }){
+  const bundles = externalBundles;
+  const setBundles = (val) => {
+    const b = typeof val === 'function' ? val(externalBundles) : val;
+    setExternalBundles(b);
+    lsSet('xidbox_qa_bundles', b);
+  };
+  const [autoFill,setAutoFill]=useState(true);
+
+  const regenerate=()=>{
+    const b=generateAllBundles();
+    setBundles(b);
+  };
+  const regenerateOne=(key,type)=>{
+    const fresh=type?generateOrg(type):generatePerson();
+    setBundles({...bundles,[key]:fresh});
+  };
+  const setBundle=(key)=>(fn)=>{
+    const updated={...bundles,[key]:typeof fn==='function'?fn(bundles?.[key]):fn};
+    setBundles(updated);
+  };
+
+  return (
+    <div className="panel">
+      <div className="panel-header">
+        <div className="panel-title">Генератор тестовых данных</div>
+        <div className="panel-sub">Генерация согласованных данных — ИНН/КПП/ОГРН/СНИЛС с валидными контрольными суммами</div>
+      </div>
+
+      <div className="gen-toolbar">
+        <button className="btn btn-primary" onClick={regenerate}>⚡ Сгенерировать всё новое</button>
+        <label style={{display:'flex',alignItems:'center',gap:8,fontSize:13,color:'var(--text2)',cursor:'pointer'}}>
+          <input type="checkbox" checked={autoFill} onChange={e=>setAutoFill(e.target.checked)} style={{accentColor:'var(--accent)'}} />
+          Автоподстановка в формы при запуске сценария
+        </label>
+        {bundles && <span className="pill pill-success" style={{fontSize:11}}>✓ Данные готовы</span>}
+      </div>
+
+      {!bundles && (
+        <div style={{background:'var(--surface)',border:'1px dashed var(--border)',borderRadius:12,padding:'40px',textAlign:'center',color:'var(--text3)',fontSize:14}}>
+          Нажмите «Сгенерировать всё новое» для создания тестовых данных
+        </div>
+      )}
+
+      {bundles && (
+        <>
+          <div style={{fontSize:12,color:'var(--text3)',marginBottom:12,display:'flex',gap:8,alignItems:'center'}}>
+            <span>Данные сохранены в localStorage и переиспользуются между прогонами.</span>
+            <span style={{color:'var(--accent)'}}>Значения можно редактировать прямо в ячейках.</span>
+          </div>
+          <div className="gen-grid">
+            <div>
+              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}}>
+                <span style={{fontSize:12,fontWeight:600,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'0.08em'}}>Физические лица</span>
+              </div>
+              <div style={{display:'flex',flexDirection:'column',gap:12}}>
+                <div>
+                  <div style={{display:'flex',gap:6,marginBottom:6,alignItems:'center'}}>
+                    <span style={{fontSize:11,color:'var(--text3)'}}>Персона 1</span>
+                    <button className="use-btn" onClick={()=>regenerateOne('person1',null)}>↺ перегенерировать</button>
+                  </div>
+                  <BundleCard title="Физлицо 1" icon="👤" data={bundles.person1} setData={setBundle('person1')} onUseInForm={onUseInForm} />
+                </div>
+                <div>
+                  <div style={{display:'flex',gap:6,marginBottom:6,alignItems:'center'}}>
+                    <span style={{fontSize:11,color:'var(--text3)'}}>Персона 2</span>
+                    <button className="use-btn" onClick={()=>regenerateOne('person2',null)}>↺ перегенерировать</button>
+                  </div>
+                  <BundleCard title="Физлицо 2" icon="👤" data={bundles.person2} setData={setBundle('person2')} onUseInForm={onUseInForm} />
+                </div>
+              </div>
+            </div>
+            <div>
+              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}}>
+                <span style={{fontSize:12,fontWeight:600,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'0.08em'}}>Организации</span>
+              </div>
+              <div style={{display:'flex',flexDirection:'column',gap:12}}>
+                <div>
+                  <div style={{display:'flex',gap:6,marginBottom:6,alignItems:'center'}}>
+                    <span style={{fontSize:11,color:'var(--text3)'}}>ЮЛ (с ОГРН)</span>
+                    <button className="use-btn" onClick={()=>regenerateOne('org1','juristic')}>↺ перегенерировать</button>
+                  </div>
+                  <BundleCard title="Организация 1 (ЮЛ)" icon="🏢" data={bundles.org1} setData={setBundle('org1')} onUseInForm={onUseInForm} />
+                </div>
+                <div>
+                  <div style={{display:'flex',gap:6,marginBottom:6,alignItems:'center'}}>
+                    <span style={{fontSize:11,color:'var(--text3)'}}>ОП (обособленное)</span>
+                    <button className="use-btn" onClick={()=>regenerateOne('org2','separate_juristic')}>↺ перегенерировать</button>
+                  </div>
+                  <BundleCard title="Организация 2 (ОП)" icon="🏬" data={bundles.org2} setData={setBundle('org2')} onUseInForm={onUseInForm} />
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ─── USERS PAGE ───────────────────────────────────────────────────────────
+function UsersPage({runScenario,running,prefill}){
+  const [createForm,setCreateForm]=useState({login:'',email:'',lastName:'',firstName:'',middleName:'',password:'',organizationName:''});
+  const [regForm,setRegForm]=useState({orgInn:'',orgName:'',lastName:'',firstName:'',middleName:'',birthday:'',inn:'',snils:'',login:'',personalEmail:'',workEmail:''});
+  const [blockForm,setBlockForm]=useState({login:'',blockType:'temporary',reason:''});
+  const [resetForm,setResetForm]=useState({login:''});
+  useEffect(()=>{if(prefill?.target==='user_create'&&prefill.data){const d=prefill.data;setCreateForm(f=>({...f,login:d.login||f.login,email:d.email||f.email,lastName:d.lastName||f.lastName,firstName:d.firstName||f.firstName,middleName:d.middleName||f.middleName}));}},[prefill]);
+  const f=(form,setForm)=>(field)=>e=>setForm({...form,[field]:e.target.value});
+  const fr=f(regForm,setRegForm);
+  return (
+    <div className="panel">
+      <div className="panel-header"><div className="panel-title">Пользователи</div><div className="panel-sub">Управление учётными записями XIDBOX</div></div>
+
+      {/* Регистрация уполномоченным лицом — реальные селекторы из codegen */}
+      <div className="card">
+        <div className="card-title"><span className="card-title-icon">📋</span> Регистрация пользователя уполномоченным лицом</div>
+        <div style={{fontSize:12,color:'var(--text3)',marginBottom:14}}>Автоматизирует полный wizard: поиск орг по ИНН → ФИО + датапикер → ИНН/СНИЛС → логин + email</div>
+        <div className="form-grid">
+          <div className="form-group"><label className="form-label">ИНН организации <span>*</span></label><input className="form-input" placeholder="6164137904" value={regForm.orgInn} onChange={fr('orgInn')} /></div>
+          <div className="form-group"><label className="form-label">Название орг. (для выбора)</label><input className="form-input" placeholder="Альфа (оставьте пустым = первая)" value={regForm.orgName} onChange={fr('orgName')} /></div>
+          <div className="form-group"><label className="form-label">Фамилия <span>*</span></label><input className="form-input" placeholder="Иванов" value={regForm.lastName} onChange={fr('lastName')} /></div>
+          <div className="form-group"><label className="form-label">Имя <span>*</span></label><input className="form-input" placeholder="Иван" value={regForm.firstName} onChange={fr('firstName')} /></div>
+          <div className="form-group"><label className="form-label">Отчество</label><input className="form-input" placeholder="Иванович" value={regForm.middleName} onChange={fr('middleName')} /></div>
+          <div className="form-group"><label className="form-label">Дата рождения <span>*</span></label><input className="form-input" placeholder="01.01.2000" value={regForm.birthday} onChange={fr('birthday')} /></div>
+          <div className="form-group"><label className="form-label">ИНН физ. лица (12 цифр)</label><input className="form-input" placeholder="333087403558" value={regForm.inn} onChange={fr('inn')} /></div>
+          <div className="form-group"><label className="form-label">СНИЛС (11 цифр)</label><input className="form-input" placeholder="12670769779" value={regForm.snils} onChange={fr('snils')} /></div>
+          <div className="form-group"><label className="form-label">Логин <span>*</span></label><input className="form-input" placeholder="ivanov.ii" value={regForm.login} onChange={fr('login')} /></div>
+          <div className="form-group"><label className="form-label">Личный email</label><input className="form-input" type="email" placeholder="ivanov@mail.com" value={regForm.personalEmail} onChange={fr('personalEmail')} /></div>
+          <div className="form-group"><label className="form-label">Рабочий email</label><input className="form-input" type="email" placeholder="ivanov@work.com" value={regForm.workEmail} onChange={fr('workEmail')} /></div>
+        </div>
+        <button className="btn btn-primary" disabled={!!running} onClick={()=>runScenario('user.register_authorized', regForm)}>
+          {running==='user.register_authorized'?<><div className="spinner"/>&nbsp;Выполняется...</>:'▶ Зарегистрировать пользователя'}
+        </button>
+      </div>
+
+      <div className="card">
+        <div className="card-title"><span className="card-title-icon">👤</span> Быстрое создание (API / системный администратор)</div>
+        <div className="form-grid">
+          <div className="form-group"><label className="form-label">Фамилия</label><input className="form-input" placeholder="Иванов" value={createForm.lastName} onChange={f(createForm,setCreateForm)('lastName')} /></div>
+          <div className="form-group"><label className="form-label">Имя</label><input className="form-input" placeholder="Иван" value={createForm.firstName} onChange={f(createForm,setCreateForm)('firstName')} /></div>
+          <div className="form-group"><label className="form-label">Отчество</label><input className="form-input" placeholder="Иванович" value={createForm.middleName} onChange={f(createForm,setCreateForm)('middleName')} /></div>
+          <div className="form-group"><label className="form-label">Логин <span>*</span></label><input className="form-input" placeholder="ivanov_i" value={createForm.login} onChange={f(createForm,setCreateForm)('login')} /></div>
+          <div className="form-group"><label className="form-label">Email <span>*</span></label><input className="form-input" type="email" placeholder="ivanov@example.com" value={createForm.email} onChange={f(createForm,setCreateForm)('email')} /></div>
+          <div className="form-group"><label className="form-label">Пароль</label><input className="form-input" type="password" placeholder="••••••••" value={createForm.password} onChange={f(createForm,setCreateForm)('password')} /></div>
+          <div className="form-group full"><label className="form-label">Организация</label><input className="form-input" placeholder="Начните вводить название..." value={createForm.organizationName} onChange={f(createForm,setCreateForm)('organizationName')} /></div>
+        </div>
+        <button className="btn btn-primary" disabled={!!running} onClick={()=>runScenario('user.create',createForm)}>
+          {running==='user.create'?<><div className="spinner"/>&nbsp;Выполняется...</>:'▶ Создать пользователя'}
+        </button>
+      </div>
+      <div className="card">
+        <div className="card-title"><span className="card-title-icon">🔒</span> Блокировка / Разблокировка УЗ</div>
+        <div className="form-grid">
+          <div className="form-group"><label className="form-label">Логин <span>*</span></label><input className="form-input" placeholder="ivanov_i" value={blockForm.login} onChange={f(blockForm,setBlockForm)('login')} /></div>
+          <div className="form-group"><label className="form-label">Тип блокировки</label><select className="form-input" value={blockForm.blockType} onChange={f(blockForm,setBlockForm)('blockType')}><option value="temporary">Временная</option><option value="permanent">Постоянная (бессрочная)</option></select></div>
+          <div className="form-group full"><label className="form-label">Причина</label><input className="form-input" placeholder="Причина блокировки..." value={blockForm.reason} onChange={f(blockForm,setBlockForm)('reason')} /></div>
+        </div>
+        <div className="btn-row">
+          <button className="btn btn-danger" disabled={!!running} onClick={()=>runScenario('user.block',blockForm)}>{running==='user.block'?<><div className="spinner"/>&nbsp;...</>:'🔒 Заблокировать'}</button>
+          <button className="btn btn-secondary" disabled={!!running} onClick={()=>runScenario('user.unblock',{login:blockForm.login})}>{running==='user.unblock'?<><div className="spinner"/>&nbsp;...</>:'🔓 Разблокировать'}</button>
+        </div>
+      </div>
+      <div className="card">
+        <div className="card-title"><span className="card-title-icon">🔑</span> Сброс пароля (с запретом входа по старому)</div>
+        <div className="form-grid">
+          <div className="form-group"><label className="form-label">Логин <span>*</span></label><input className="form-input" placeholder="ivanov_i" value={resetForm.login} onChange={f(resetForm,setResetForm)('login')} /></div>
+        </div>
+        <button className="btn btn-warn" disabled={!!running} onClick={()=>runScenario('user.reset_password',resetForm)}>{running==='user.reset_password'?<><div className="spinner"/>&nbsp;...</>:'🔑 Сбросить пароль'}</button>
+      </div>
+      <div className="card">
+        <div className="card-title"><span className="card-title-icon">📤</span> Выгрузка списка пользователей</div>
+        <button className="btn btn-secondary" disabled={!!running} onClick={()=>runScenario('user.export',{})}>📥 Выгрузить список</button>
+      </div>
+    </div>
+  );
+}
+
+// ─── PROFILES PAGE ────────────────────────────────────────────────────────
+function ProfilesPage({runScenario,running}){
+  const [blockForm,setBlockForm]=useState({profileId:'',reason:''});
+  const [roleForm,setRoleForm]=useState({profileId:'',roleName:''});
+  const [posForm,setPosForm]=useState({profileId:'',position:''});
+  return (
+    <div className="panel">
+      <div className="panel-header"><div className="panel-title">Профили</div><div className="panel-sub">Управление профилями учётных записей</div></div>
+      <div className="card">
+        <div className="card-title"><span className="card-title-icon">🔒</span> Блокировка / Разблокировка профиля</div>
+        <div className="form-grid">
+          <div className="form-group"><label className="form-label">Логин/ID профиля <span>*</span></label><input className="form-input" placeholder="ivanov_i" value={blockForm.profileId} onChange={e=>setBlockForm({...blockForm,profileId:e.target.value})} /></div>
+          <div className="form-group"><label className="form-label">Причина</label><input className="form-input" placeholder="Причина..." value={blockForm.reason} onChange={e=>setBlockForm({...blockForm,reason:e.target.value})} /></div>
+        </div>
+        <div className="btn-row">
+          <button className="btn btn-danger" disabled={!!running} onClick={()=>runScenario('profile.block',blockForm)}>{running==='profile.block'?<><div className="spinner"/>&nbsp;...</>:'🔒 Заблокировать'}</button>
+          <button className="btn btn-secondary" disabled={!!running} onClick={()=>runScenario('profile.unblock',blockForm)}>{running==='profile.unblock'?<><div className="spinner"/>&nbsp;...</>:'🔓 Разблокировать'}</button>
+        </div>
+      </div>
+      <div className="card">
+        <div className="card-title"><span className="card-title-icon">🎭</span> Назначение / Снятие ролей</div>
+        <div className="form-grid">
+          <div className="form-group"><label className="form-label">Профиль (логин/ID) <span>*</span></label><input className="form-input" placeholder="ivanov_i" value={roleForm.profileId} onChange={e=>setRoleForm({...roleForm,profileId:e.target.value})} /></div>
+          <div className="form-group"><label className="form-label">Роль <span>*</span></label><input className="form-input" placeholder="Название роли" value={roleForm.roleName} onChange={e=>setRoleForm({...roleForm,roleName:e.target.value})} /></div>
+        </div>
+        <div className="btn-row">
+          <button className="btn btn-primary" disabled={!!running} onClick={()=>runScenario('profile.assign_role',roleForm)}>+ Назначить роль</button>
+          <button className="btn btn-danger" disabled={!!running} onClick={()=>runScenario('profile.remove_role',roleForm)}>− Снять роль</button>
+        </div>
+      </div>
+      <div className="card">
+        <div className="card-title"><span className="card-title-icon">💼</span> Назначение / Снятие должностей</div>
+        <div className="form-grid">
+          <div className="form-group"><label className="form-label">Профиль (логин/ID) <span>*</span></label><input className="form-input" placeholder="ivanov_i" value={posForm.profileId} onChange={e=>setPosForm({...posForm,profileId:e.target.value})} /></div>
+          <div className="form-group"><label className="form-label">Должность <span>*</span></label><input className="form-input" placeholder="Главный специалист" value={posForm.position} onChange={e=>setPosForm({...posForm,position:e.target.value})} /></div>
+        </div>
+        <div className="btn-row">
+          <button className="btn btn-primary" disabled={!!running} onClick={()=>runScenario('profile.assign_role',{...posForm,type:'position'})}>+ Назначить должность</button>
+          <button className="btn btn-danger" disabled={!!running} onClick={()=>runScenario('profile.remove_role',{...posForm,type:'position'})}>− Снять должность</button>
+        </div>
+      </div>
+      <div className="card">
+        <div className="card-title"><span className="card-title-icon">📤</span> Выгрузка списка профилей</div>
+        <button className="btn btn-secondary" disabled={!!running} onClick={()=>runScenario('profile.export',{})}>📥 Выгрузить профили</button>
+      </div>
+    </div>
+  );
+}
+
+// ─── ORGANIZATIONS PAGE ───────────────────────────────────────────────────
+function OrgsPage({runScenario,running,prefill}){
+  const [form,setForm]=useState({name:'',shortName:'',inn:'',kpp:'',ogrn:'',type:'ЮЛ',description:'',address:'',registrationDate:''});
+  useEffect(()=>{if(prefill?.target==='org_create'&&prefill.data){const d=prefill.data;setForm(f=>({...f,name:d.fullName||f.name,shortName:d.shortName||f.shortName,inn:d.orgInn||f.inn,kpp:d.kpp||f.kpp,ogrn:d.ogrn||f.ogrn,address:d.address||f.address,registrationDate:d.registrationDate||f.registrationDate}));}},[prefill]);
+  return (
+    <div className="panel">
+      <div className="panel-header"><div className="panel-title">Организации</div><div className="panel-sub">Управление организациями в XIDBOX</div></div>
+      <div className="card">
+        <div className="card-title"><span className="card-title-icon">🏢</span> Создание организации</div>
+        <div className="form-grid">
+          <div className="form-group full"><label className="form-label">Полное наименование <span>*</span></label><input className="form-input" placeholder='ООО "Пример"' value={form.name} onChange={e=>setForm({...form,name:e.target.value})} /></div>
+          <div className="form-group"><label className="form-label">Краткое наименование</label><input className="form-input" placeholder="Пример" value={form.shortName} onChange={e=>setForm({...form,shortName:e.target.value})} /></div>
+          <div className="form-group"><label className="form-label">Тип</label><select className="form-input" value={form.type} onChange={e=>setForm({...form,type:e.target.value})}><option>ЮЛ</option><option>ИП</option><option>ФЛ</option><option>ОП</option></select></div>
+          <div className="form-group"><label className="form-label">ИНН</label><input className="form-input" placeholder="7712345678" value={form.inn} onChange={e=>setForm({...form,inn:e.target.value})} /></div>
+          <div className="form-group"><label className="form-label">КПП</label><input className="form-input" placeholder="771201001" value={form.kpp} onChange={e=>setForm({...form,kpp:e.target.value})} /></div>
+          <div className="form-group"><label className="form-label">ОГРН</label><input className="form-input" placeholder="1027700132195" value={form.ogrn||''} onChange={e=>setForm({...form,ogrn:e.target.value})} /></div>
+          <div className="form-group"><label className="form-label">Дата регистрации</label><input className="form-input" type="date" value={form.registrationDate||''} onChange={e=>setForm({...form,registrationDate:e.target.value})} /></div>
+          <div className="form-group full"><label className="form-label">Адрес</label><input className="form-input" placeholder="г Москва, ул Ленина, д. 1" value={form.address||''} onChange={e=>setForm({...form,address:e.target.value})} /></div>
+          <div className="form-group full"><label className="form-label">Описание</label><input className="form-input" placeholder="Описание организации..." value={form.description||''} onChange={e=>setForm({...form,description:e.target.value})} /></div>
+        </div>
+        <button className="btn btn-primary" disabled={!!running} onClick={()=>runScenario('org.create',form)}>
+          {running==='org.create'?<><div className="spinner"/>&nbsp;Выполняется...</>:'▶ Создать организацию'}
+        </button>
+      </div>
+      <div className="card">
+        <div className="card-title"><span className="card-title-icon">📤</span> Выгрузка списка организаций</div>
+        <button className="btn btn-secondary" disabled={!!running} onClick={()=>runScenario('org.export',{})}>📥 Выгрузить организации</button>
+      </div>
+    </div>
+  );
+}
+
+// ─── TICKETS PAGE ─────────────────────────────────────────────────────────
+function TicketsPage({runScenario,running}){
+  const [createForm,setCreateForm]=useState({type:'session_end',targetLogin:'',comment:''});
+  const [approveForm,setApproveForm]=useState({ticketId:'',action:'approve',comment:''});
+  return (
+    <div className="panel">
+      <div className="panel-header"><div className="panel-title">Заявки</div><div className="panel-sub">Создание и обработка заявок XIDBOX</div></div>
+      <div className="card">
+        <div className="card-title"><span className="card-title-icon">📋</span> Создание заявки</div>
+        <div className="form-grid">
+          <div className="form-group"><label className="form-label">Тип заявки</label><select className="form-input" value={createForm.type} onChange={e=>setCreateForm({...createForm,type:e.target.value})}><option value="session_end">Завершение активных сессий</option><option value="role_assign">Назначение роли</option><option value="role_remove">Снятие роли</option><option value="user_register">Регистрация пользователя</option><option value="login_change">Изменение login/email</option><option value="position_change">Изменение должностей</option></select></div>
+          <div className="form-group"><label className="form-label">Логин/объект заявки</label><input className="form-input" placeholder="ivanov_i" value={createForm.targetLogin} onChange={e=>setCreateForm({...createForm,targetLogin:e.target.value})} /></div>
+          <div className="form-group full"><label className="form-label">Комментарий</label><input className="form-input" placeholder="Комментарий к заявке..." value={createForm.comment} onChange={e=>setCreateForm({...createForm,comment:e.target.value})} /></div>
+        </div>
+        <button className="btn btn-primary" disabled={!!running} onClick={()=>runScenario('ticket.create',createForm)}>{running==='ticket.create'?<><div className="spinner"/>&nbsp;...</>:'📋 Создать заявку'}</button>
+      </div>
+      <div className="card">
+        <div className="card-title"><span className="card-title-icon">✅</span> Согласование / Утверждение / Отклонение</div>
+        <div className="form-grid">
+          <div className="form-group"><label className="form-label">ID заявки <span>*</span></label><input className="form-input" placeholder="Номер заявки" value={approveForm.ticketId} onChange={e=>setApproveForm({...approveForm,ticketId:e.target.value})} /></div>
+          <div className="form-group"><label className="form-label">Действие</label><select className="form-input" value={approveForm.action} onChange={e=>setApproveForm({...approveForm,action:e.target.value})}><option value="approve">Утвердить</option><option value="agree">Согласовать</option><option value="reject">Отклонить</option></select></div>
+          <div className="form-group full"><label className="form-label">Комментарий</label><input className="form-input" placeholder="Причина..." value={approveForm.comment} onChange={e=>setApproveForm({...approveForm,comment:e.target.value})} /></div>
+        </div>
+        <div className="btn-row">
+          <button className="btn btn-primary" disabled={!!running} onClick={()=>runScenario('ticket.approve',approveForm)}>{running==='ticket.approve'?<><div className="spinner"/>&nbsp;...</>:'✅ Утвердить/Согласовать'}</button>
+          <button className="btn btn-danger" disabled={!!running} onClick={()=>runScenario('ticket.reject',approveForm)}>{running==='ticket.reject'?<><div className="spinner"/>&nbsp;...</>:'✗ Отклонить'}</button>
+        </div>
+      </div>
+      <div className="card">
+        <div className="card-title"><span className="card-title-icon">📤</span> Выгрузка списка заявок</div>
+        <button className="btn btn-secondary" disabled={!!running} onClick={()=>runScenario('ticket.export',{})}>📥 Выгрузить заявки</button>
+      </div>
+    </div>
+  );
+}
+
+// ─── RBAC PAGE ────────────────────────────────────────────────────────────
+function RbacPage(){
+  const [roleFilter,setRoleFilter]=useState('');
+  const [resourceFilter,setResourceFilter]=useState('');
+  const [searchFilter,setSearchFilter]=useState('');
+  const filtered=RBAC.filter(row=>{
+    if(resourceFilter&&row.resource!==resourceFilter)return false;
+    if(searchFilter&&!row.action.toLowerCase().includes(searchFilter.toLowerCase()))return false;
+    return true;
+  });
+  const resources=[...new Set(RBAC.map(r=>r.resource))];
+  const roleIndices=roleFilter?[ROLES.indexOf(roleFilter)]:ROLES.map((_,i)=>i);
+  return (
+    <div className="panel">
+      <div className="panel-header"><div className="panel-title">Матрица прав доступа RBAC</div><div className="panel-sub">Ролевая модель X-IDBox — кому что доступно</div></div>
+      <div className="filter-bar">
+        <input className="form-input" placeholder="🔍 Поиск по действию..." value={searchFilter} onChange={e=>setSearchFilter(e.target.value)} style={{minWidth:200}} />
+        <select className="form-input" value={resourceFilter} onChange={e=>setResourceFilter(e.target.value)} style={{minWidth:160}}><option value="">Все ресурсы</option>{resources.map(r=><option key={r} value={r}>{r}</option>)}</select>
+        <select className="form-input" value={roleFilter} onChange={e=>setRoleFilter(e.target.value)} style={{minWidth:160}}><option value="">Все роли</option>{ROLES.map(r=><option key={r} value={r}>{r}</option>)}</select>
+        {(searchFilter||resourceFilter||roleFilter)&&<button className="btn btn-secondary" onClick={()=>{setSearchFilter('');setResourceFilter('');setRoleFilter('');}}>✕ Сбросить</button>}
+      </div>
+      <div className="rbac-wrap">
+        <table className="rbac-table">
+          <thead><tr><th>Ресурс</th><th>Действие</th>{roleIndices.map(i=><th key={i}>{ROLES[i]}</th>)}</tr></thead>
+          <tbody>
+            {filtered.map((row,idx)=>(
+              <tr key={idx}>
+                <td className="rbac-resource">{row.resource}</td>
+                <td className="rbac-action">{row.action}</td>
+                {roleIndices.map(i=><td key={i}><PermBadge val={row.perms[i]} /></td>)}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {filtered.length===0&&<div style={{padding:'40px 0',textAlign:'center',color:'var(--text3)',fontSize:13}}>Ничего не найдено</div>}
+      </div>
+    </div>
+  );
+}
+
+// ─── CHAIN RUNNER ────────────────────────────────────────────────────────
+// Chains are arrays of {scenarioId, label, getParams(bundles)}
+// To add a new chain: add an entry to CHAINS below — no other changes needed.
+const CHAINS = [
+  {
+    id: 'org_then_user',
+    label: 'Создать орг → создать пользователя',
+    desc: 'Создаёт организацию из org1, затем регистрирует пользователя из person1 в ней',
+    steps: [
+      {
+        scenarioId: 'org.create',
+        label: 'Создать организацию',
+        getParams: (b) => b?.org1 ? {
+          name: b.org1.fullName, shortName: b.org1.shortName,
+          inn: b.org1.orgInn, kpp: b.org1.kpp, ogrn: b.org1.ogrn||'',
+          address: b.org1.address, registrationDate: b.org1.registrationDate, type: 'ЮЛ'
+        } : {},
+      },
+      {
+        scenarioId: 'user.create',
+        label: 'Создать пользователя в организации',
+        getParams: (b) => b?.person1&&b?.org1 ? {
+          login: b.person1.login, email: b.person1.email,
+          lastName: b.person1.lastName, firstName: b.person1.firstName, middleName: b.person1.middleName,
+          organizationName: b.org1.shortName,
+        } : {},
+      },
+    ]
+  },
+  {
+    id: 'user_block_reset',
+    label: 'Заблокировать → сбросить пароль',
+    desc: 'Блокирует УЗ person1, затем сбрасывает пароль с запретом по старому',
+    steps: [
+      {
+        scenarioId: 'user.block',
+        label: 'Заблокировать УЗ',
+        getParams: (b) => b?.person1 ? {
+          login: b.person1.login, blockType: 'temporary', reason: b.person1.block_reason,
+        } : {},
+      },
+      {
+        scenarioId: 'user.reset_password',
+        label: 'Сбросить пароль',
+        getParams: (b) => b?.person1 ? { login: b.person1.login } : {},
+      },
+    ]
+  },
+  {
+    id: 'org_user_profile',
+    label: 'Орг → Пользователь → Профиль',
+    desc: 'Полный онбординг: создать орг, пользователя, зарегистрировать профиль в орг',
+    steps: [
+      {
+        scenarioId: 'org.create',
+        label: 'Создать организацию',
+        getParams: (b) => b?.org1 ? {
+          name: b.org1.fullName, shortName: b.org1.shortName,
+          inn: b.org1.orgInn, kpp: b.org1.kpp, ogrn: b.org1.ogrn||'',
+          address: b.org1.address, registrationDate: b.org1.registrationDate, type: 'ЮЛ'
+        } : {},
+      },
+      {
+        scenarioId: 'user.create',
+        label: 'Создать пользователя',
+        getParams: (b) => b?.person1&&b?.org1 ? {
+          login: b.person1.login, email: b.person1.email,
+          lastName: b.person1.lastName, firstName: b.person1.firstName, middleName: b.person1.middleName,
+          organizationName: b.org1.shortName,
+        } : {},
+      },
+      {
+        scenarioId: 'profile.create',
+        label: 'Зарегистрировать профиль',
+        getParams: (b) => b?.person1&&b?.org1 ? {
+          login: b.person1.login, organizationName: b.org1.shortName,
+        } : {},
+      },
+    ]
+  },
+];
+
+// Step status colours
+const STEP_COLOR = { done:'var(--success)', error:'var(--error)', running:'var(--accent)' };
+
+function ChainPage({ apiPostFn, bundles, addLog }){
+  // chainState: { [chainId]: { status: 'idle'|'running'|'done'|'error', steps: {[i]: 'waiting'|'running'|'done'|'error'} } }
+  const [chainState, setChainState] = useState({});
+
+  const updStep = (chainId, i, st) =>
+    setChainState(prev => ({ ...prev, [chainId]: { ...prev[chainId], steps: { ...prev[chainId]?.steps, [i]: st } } }));
+
+  const runChain = async (chain) => {
+    const cid = chain.id;
+    if (chainState[cid]?.status === 'running') return;
+    setChainState(prev => ({ ...prev, [cid]: { status: 'running', steps: {} } }));
+    addLog({ level: 'info', message: `⛓ Цепочка [${chain.label}] запущена`, ts: new Date().toISOString() });
+
+    for (let i = 0; i < chain.steps.length; i++) {
+      const step = chain.steps[i];
+      updStep(cid, i, 'running');
+      addLog({ level: 'info', message: `  [${i+1}/${chain.steps.length}] ${step.label}…`, ts: new Date().toISOString() });
+      try {
+        const params = step.getParams(bundles);
+        await apiPostFn(`/api/run/${step.scenarioId}`, params);
+        // wait for backend done signal — simplified with timeout; production: await WS 'done'
+        await new Promise(res => setTimeout(res, 2800));
+        updStep(cid, i, 'done');
+        addLog({ level: 'success', message: `  ✓ ${step.label}`, ts: new Date().toISOString() });
+      } catch (err) {
+        updStep(cid, i, 'error');
+        setChainState(prev => ({ ...prev, [cid]: { ...prev[cid], status: 'error' } }));
+        addLog({ level: 'error', message: `  ✗ ${step.label}: ${err.message}`, ts: new Date().toISOString() });
+        return;
+      }
+    }
+    setChainState(prev => ({ ...prev, [cid]: { ...prev[cid], status: 'done' } }));
+    addLog({ level: 'success', message: `⛓ Цепочка [${chain.label}] завершена`, ts: new Date().toISOString() });
+  };
+
+  const resetChain = (cid) => setChainState(prev => ({ ...prev, [cid]: { status: 'idle', steps: {} } }));
+
+  const anyRunning = Object.values(chainState).some(c => c.status === 'running');
+
+  return (
+    <div className="panel">
+      <div className="panel-header">
+        <div className="panel-title">Цепочки сценариев</div>
+        <div className="panel-sub">Последовательный запуск нескольких действий одной кнопкой</div>
+      </div>
+
+      {!bundles && (
+        <div className="card" style={{ borderColor: 'rgba(243,156,18,.35)', background: 'rgba(243,156,18,.04)' }}>
+          <span style={{ fontSize: 12, color: 'var(--warn)' }}>
+            ⚠ Сгенерируйте тестовые данные на вкладке «⚡ Данные» — цепочки берут параметры из бандлов автоматически
+          </span>
+        </div>
+      )}
+
+      {CHAINS.map(chain => {
+        const cs = chainState[chain.id] || { status: 'idle', steps: {} };
+        return (
+          <div className="card" key={chain.id}>
+            <div className="card-title">
+              <span className="card-title-icon">⛓</span>
+              {chain.label}
+              <span style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
+                { cs.status === 'done'    && <span className="pill pill-success">✓ Готово</span> }
+                { cs.status === 'error'   && <span className="pill" style={{ background:'rgba(231,76,60,.12)',color:'var(--error)',border:'1px solid rgba(231,76,60,.3)' }}>✗ Ошибка</span> }
+                { cs.status === 'running' && <span className="pill pill-info"><div className="spinner" style={{width:8,height:8,borderWidth:1.5}}/>&nbsp;Выполняется</span> }
+                { (cs.status==='done'||cs.status==='error') && (
+                  <button className="btn btn-secondary" style={{fontSize:11,padding:'3px 8px'}} onClick={()=>resetChain(chain.id)}>↺ Сбросить</button>
+                )}
+              </span>
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--text3)', marginBottom: 14 }}>{chain.desc}</div>
+
+            {/* Step list */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 7, marginBottom: 16 }}>
+              {chain.steps.map((step, i) => {
+                const st = cs.steps[i]; // 'running'|'done'|'error'|undefined
+                const params = bundles ? step.getParams(bundles) : {};
+                return (
+                  <div key={i} style={{
+                    display: 'flex', alignItems: 'flex-start', gap: 12,
+                    background: 'var(--surface2)', border: '1px solid var(--border)',
+                    borderRadius: 8, padding: '10px 14px',
+                    borderLeft: `3px solid ${st ? STEP_COLOR[st] : 'var(--border)'}`,
+                  }}>
+                    {/* Number / spinner / checkmark */}
+                    <div style={{
+                      width: 22, height: 22, borderRadius: '50%', flexShrink: 0, marginTop: 1,
+                      background: st ? (st==='done'?'rgba(46,204,113,.15)':st==='error'?'rgba(231,76,60,.15)':'rgba(79,143,255,.15)') : 'var(--surface3)',
+                      color: st ? STEP_COLOR[st] : 'var(--text3)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 11, fontWeight: 700, fontFamily: 'var(--mono)',
+                    }}>
+                      { st === 'running' ? <div className="spinner" style={{width:10,height:10,borderWidth:2,borderTopColor:'var(--accent)'}}/> :
+                        st === 'done'    ? '✓' :
+                        st === 'error'   ? '✗' : i+1 }
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', marginBottom: 3 }}>{step.label}</div>
+                      <div style={{ fontSize: 10.5, color: 'var(--text3)', fontFamily: 'var(--mono)' }}>
+                        {step.scenarioId}
+                        { bundles && Object.keys(params).length > 0 && (
+                          <span style={{ marginLeft: 10, color: 'var(--success)' }}>
+                            · {Object.entries(params).slice(0,3).map(([k,v])=>`${k}=${String(v).slice(0,18)}`).join('  ')}
+                            {Object.keys(params).length > 3 && ' …'}
+                          </span>
+                        )}
+                        { !bundles && <span style={{ color: 'var(--warn)', marginLeft: 10 }}>· нет данных</span> }
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <button
+              className="btn btn-primary"
+              disabled={anyRunning}
+              onClick={() => runChain(chain)}
+            >
+              { cs.status === 'running'
+                ? <><div className="spinner"/>&nbsp;Выполняется…</>
+                : `▶ Запустить цепочку (${chain.steps.length} шага)` }
+            </button>
+          </div>
+        );
+      })}
+
+      {/* How to add chains */}
+      <div className="card" style={{ borderColor: 'rgba(79,143,255,.25)', background: 'rgba(79,143,255,.03)' }}>
+        <div className="card-title"><span className="card-title-icon">📖</span>Как добавить новую цепочку</div>
+        <div style={{ fontSize: 12, color: 'var(--text2)', lineHeight: 1.85, fontFamily: 'var(--mono)' }}>
+          <div style={{ color: 'var(--text3)', marginBottom: 6, fontFamily: 'var(--sans)' }}>В файле <code>frontend/index.html</code> найдите массив <code>CHAINS</code> и добавьте объект:</div>
+          <pre style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 7, padding: 12, fontSize: 11, overflowX: 'auto', color: 'var(--text2)' }}>{`{
+  id: 'my_chain',             // уникальный ID
+  label: 'Моя цепочка',      // отображается в UI
+  desc:  'Что делает',
+  steps: [
+    {
+      scenarioId: 'user.block',  // ID backend-сценария
+      label: 'Шаг 1',
+      getParams: (bundles) => ({  // данные из бандлов
+        login: bundles?.person1?.login,
+      }),
+    },
+    // ... ещё шаги
+  ]
+}`}</pre>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── RUN HISTORY ──────────────────────────────────────────────────────────
+const LS_HISTORY = 'xidbox_qa_history';
+
+function HistoryPage({ history, clearHistory }) {
+  const [filter, setFilter] = useState('');
+  const [envFilter, setEnvFilter] = useState('');
+
+  const envs = [...new Set(history.map(h => h.env).filter(Boolean))];
+  const filtered = history
+    .filter(h => !filter || h.scenario.includes(filter))
+    .filter(h => !envFilter || h.env === envFilter)
+    .slice().reverse();
+
+  const copyRow = (h) => {
+    navigator.clipboard.writeText(JSON.stringify(h, null, 2));
+  };
+
+  return (
+    <div className="panel">
+      <div className="panel-header">
+        <div className="panel-title">История запусков</div>
+        <div className="panel-sub">Что запускалось, когда, на каком стенде и с какими данными</div>
+      </div>
+
+      <div className="filter-bar" style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+        <input className="form-input" placeholder="🔍 Фильтр по сценарию..." value={filter} onChange={e => setFilter(e.target.value)} style={{ minWidth: 220 }} />
+        <select className="form-input" value={envFilter} onChange={e => setEnvFilter(e.target.value)} style={{ minWidth: 130 }}>
+          <option value="">Все стенды</option>
+          {envs.map(e => <option key={e} value={e}>{e}</option>)}
+        </select>
+        { (filter || envFilter) && <button className="btn btn-secondary" onClick={() => { setFilter(''); setEnvFilter(''); }}>✕ Сбросить</button> }
+        <span style={{ fontSize: 11, color: 'var(--text3)', alignSelf: 'center', marginLeft: 'auto' }}>{filtered.length} записей</span>
+        <button className="btn btn-secondary" style={{ fontSize: 11 }} onClick={clearHistory}>🗑 Очистить</button>
+      </div>
+
+      {filtered.length === 0 && (
+        <div style={{ color: 'var(--text3)', fontSize: 13, padding: '32px 0', textAlign: 'center' }}>
+          История пуста — запустите любой сценарий
+        </div>
+      )}
+
+      {filtered.map((h, i) => (
+        <div key={i} style={{
+          background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 9,
+          padding: '11px 16px', marginBottom: 9,
+          borderLeft: `3px solid ${h.status==='success'?'var(--success)':h.status==='error'?'var(--error)':'var(--border)'}`,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+            <span style={{ fontFamily: 'var(--mono)', fontSize: 10.5, color: 'var(--text3)', flexShrink: 0 }}>
+              {new Date(h.ts).toLocaleString('ru-RU')}
+            </span>
+            <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--text)' }}>{h.scenario}</span>
+            { h.env && <span className="pill pill-info" style={{ fontSize: 10 }}>{h.env}</span> }
+            { h.status === 'success' && <span className="pill pill-success" style={{ fontSize: 10 }}>✓ OK</span> }
+            { h.status === 'error'   && <span className="pill" style={{ background:'rgba(231,76,60,.12)',color:'var(--error)',border:'1px solid rgba(231,76,60,.3)',fontSize:10 }}>✗ Ошибка</span> }
+            { h.chain && <span className="pill pill-info" style={{ fontSize: 10 }}>⛓ {h.chain}</span> }
+            <button
+              onClick={() => copyRow(h)}
+              style={{ marginLeft: 'auto', background: 'none', border: '1px solid var(--border)', borderRadius: 5, color: 'var(--text3)', cursor: 'pointer', fontSize: 11, padding: '2px 8px' }}
+              title="Скопировать JSON"
+            >⧉ JSON</button>
+          </div>
+          {/* Params row — hide password */}
+          { h.params && Object.keys(h.params).length > 0 && (
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {Object.entries(h.params)
+                .filter(([k]) => k !== 'password')
+                .map(([k, v]) => (
+                  <span key={k} style={{
+                    background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 4,
+                    padding: '1.5px 7px', fontFamily: 'var(--mono)', fontSize: 10.5, color: 'var(--text3)',
+                    whiteSpace: 'nowrap',
+                  }}>
+                    <span style={{ color: 'var(--text2)' }}>{k}</span>=<span style={{ color: 'var(--accent)' }}>{String(v).slice(0, 30)}{String(v).length > 30 ? '…' : ''}</span>
+                  </span>
+                ))
+              }
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── HOW TO ADD SCENARIOS ─────────────────────────────────────────────────
+function ScenarioGuidePage() {
+  const [copied, setCopied] = useState('');
+  const cp = (key, text) => { navigator.clipboard.writeText(text); setCopied(key); setTimeout(() => setCopied(''), 1500); };
+
+  const BACKEND_SNIPPET = `// backend/playwright/my_scenario.js
+const { loginAndGoTo } = require('./base');
+
+module.exports = async function myScenario(params, log) {
+  const { page, browser } = await loginAndGoTo('/some-page');
+  try {
+    // используйте params.login, params.email и т.д.
+    log('info', 'Открываем форму...');
+    await page.click('button:has-text("Создать")');
+    await page.fill('input[name="login"]', params.login || '');
+    await page.click('button[type="submit"]');
+    await page.waitForURL(/success/);
+    log('success', 'Готово');
+  } finally {
+    await browser.close();
+  }
+};`;
+
+  const REGISTER_SNIPPET = `// backend/routes/run.js  — добавьте в объект SCENARIOS:
+'my.scenario': require('../playwright/my_scenario'),`;
+
+  const CHAIN_SNIPPET = `// frontend/index.html  — добавьте в массив CHAINS:
+{
+  id: 'my_chain',
+  label: 'Моя цепочка',
+  desc:  'Что она делает',
+  steps: [
+    {
+      scenarioId: 'my.scenario',
+      label: 'Первый шаг',
+      getParams: (bundles) => ({
+        login: bundles?.person1?.login,
+      }),
+    },
+  ]
+}`;
+
+  const AUTO_MAP_SNIPPET = `// frontend/index.html  — добавьте в объект AUTO_MAP
+// (чтобы поля формы заполнялись автоматически из генератора):
+'my.scenario': (bundles) => ({
+  login: bundles?.person1?.login,
+  email: bundles?.person1?.email,
+}),`;
+
+  const block = (key, title, sub, code) => (
+    <div className="card" style={{ marginBottom: 14 }}>
+      <div className="card-title" style={{ justifyContent: 'space-between' }}>
+        <span><span className="card-title-icon">{key==='b'?'1️⃣':key==='r'?'2️⃣':key==='c'?'3️⃣':'4️⃣'}</span>{title}</span>
+        <button
+          className="btn btn-secondary"
+          style={{ fontSize: 11, padding: '3px 10px' }}
+          onClick={() => cp(key, code)}
+        >{copied===key ? '✓ Скопировано' : '⧉ Копировать'}</button>
+      </div>
+      <div style={{ fontSize: 12, color: 'var(--text3)', marginBottom: 10 }}>{sub}</div>
+      <pre style={{
+        background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8,
+        padding: '12px 14px', fontSize: 11, fontFamily: 'var(--mono)',
+        overflowX: 'auto', color: 'var(--text2)', lineHeight: 1.7,
+      }}>{code}</pre>
+    </div>
+  );
+
+  return (
+    <div className="panel">
+      <div className="panel-header">
+        <div className="panel-title">Как добавить новый сценарий</div>
+        <div className="panel-sub">Пошаговая инструкция — 4 точки изменений, ничего лишнего</div>
+      </div>
+
+      <div className="card" style={{ background: 'rgba(79,143,255,.04)', borderColor: 'rgba(79,143,255,.25)', marginBottom: 18 }}>
+        <div style={{ fontSize: 12, color: 'var(--text2)', lineHeight: 1.9 }}>
+          <div style={{ fontWeight: 600, color: 'var(--text)', marginBottom: 8 }}>Архитектура: Frontend → Backend → Playwright → XIDBOX UI</div>
+          <div>Каждый сценарий — это Node.js-файл в <code style={{fontFamily:'var(--mono)',fontSize:11}}>backend/playwright/</code>, который запускает headless Chromium и управляет интерфейсом XIDBOX.</div>
+          <div style={{ marginTop: 6 }}>Для подбора точных селекторов запустите: <code style={{ fontFamily: 'var(--mono)', fontSize: 11, background: 'var(--surface2)', padding: '1px 7px', borderRadius: 4 }}>npx playwright codegen &lt;BASE_URL&gt;</code></div>
+        </div>
+      </div>
+
+      {block('b', 'Создать файл сценария', 'backend/playwright/my_scenario.js — вся логика Playwright здесь', BACKEND_SNIPPET)}
+      {block('r', 'Зарегистрировать в роутере', 'backend/routes/run.js — одна строка в объект SCENARIOS', REGISTER_SNIPPET)}
+      {block('c', 'Добавить в цепочку (опционально)', 'frontend/index.html — массив CHAINS, если нужен последовательный запуск', CHAIN_SNIPPET)}
+      {block('a', 'Настроить авто-подстановку (опционально)', 'frontend/index.html — объект AUTO_MAP, чтобы форма заполнялась из генератора', AUTO_MAP_SNIPPET)}
+
+      <div className="card" style={{ background: 'rgba(46,204,113,.03)', borderColor: 'rgba(46,204,113,.2)' }}>
+        <div className="card-title"><span className="card-title-icon">✅</span>Чеклист</div>
+        {[
+          ['backend/playwright/my_scenario.js', 'Файл с Playwright-логикой'],
+          ['backend/routes/run.js → SCENARIOS', 'Регистрация сценария в роутере'],
+          ['frontend/index.html → AUTO_MAP', 'Автоподстановка данных в форму (если нужна)'],
+          ['frontend/index.html → CHAINS', 'Добавление в цепочку (если нужно)'],
+          ['frontend/index.html → <form>', 'Новая форма в нужном разделе (если нужен отдельный UI)'],
+        ].map(([file, desc], i) => (
+          <div key={i} style={{ display: 'flex', gap: 10, padding: '7px 0', borderBottom: i < 4 ? '1px solid var(--border)' : 'none' }}>
+            <span style={{ color: 'var(--success)', fontSize: 13 }}>□</span>
+            <div>
+              <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--accent)' }}>{file}</div>
+              <div style={{ fontSize: 11.5, color: 'var(--text3)', marginTop: 1 }}>{desc}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── MAIN APP ─────────────────────────────────────────────────────────────
+
+
+function App(){
+  const [tab,setTab]=useState('orgs');
+  const [logs,setLogs]=useState([]);
+  const [running,setRunning]=useState(null);
+  const [wsConnected,setWsConnected]=useState(false);
+  const [envs,setEnvs]=useState(()=>lsGet(LS_ENVS,DEFAULT_ENVS));
+  const [activeEnvId,setActiveEnvId]=useState(()=>localStorage.getItem(LS_ENV_ID)||'dev');
+  const [prefill,setPrefill]=useState(null);
+  const [history,setHistory]=useState(()=>lsGet(LS_HISTORY,[]));
+  // bundles lifted to App so chains + pages share same data
+  const [bundles,setBundles]=useState(()=>lsGet('xidbox_qa_bundles',null));
+  const logBodyRef=useRef(null);
+  const wsRef=useRef(null);
+
+  const activeEnv=envs.find(e=>e.id===activeEnvId)||envs[0]||{};
+
+  useEffect(()=>{
+    if(activeEnv.baseUrl){
+      apiPost('/api/config',{baseUrl:activeEnv.baseUrl,login:activeEnv.login,password:activeEnv.password}).catch(()=>{});
+    }
+  },[activeEnvId,envs]);
+
+  useEffect(()=>{
+    function connect(){
+      const ws=new WebSocket('ws://localhost:3001');
+      wsRef.current=ws;
+      ws.onopen=()=>setWsConnected(true);
+      ws.onclose=()=>{setWsConnected(false);setTimeout(connect,3000);};
+      ws.onmessage=(ev)=>{
+        const msg=JSON.parse(ev.data);
+        if(msg.type==='log'){setLogs(prev=>[...prev.slice(-600),{level:msg.level,message:msg.message,ts:msg.ts}]);}
+        if(msg.type==='done'){setRunning(null);}
+      };
+    }
+    connect();
+    return()=>wsRef.current?.close();
+  },[]);
+
+  useEffect(()=>{if(logBodyRef.current)logBodyRef.current.scrollTop=logBodyRef.current.scrollHeight;},[logs]);
+
+  const addLog=(entry)=>setLogs(prev=>[...prev.slice(-600),entry]);
+
+  const addHistory=(scenario,params,status)=>{
+    const entry={scenario,params,status,env:activeEnv.label||activeEnvId,ts:new Date().toISOString()};
+    setHistory(prev=>{const upd=[...prev.slice(-499),entry];lsSet(LS_HISTORY,upd);return upd;});
+  };
+
+  const runScenario=async(scenario,params)=>{
+    if(running)return;
+    setRunning(scenario);
+    addLog({level:'info',message:`─── Старт: ${scenario} [${activeEnv.label||activeEnvId}] ───`,ts:new Date().toISOString()});
+    try{
+      await apiPost(`/api/run/${scenario}`,params);
+      // history success recorded when WS 'done' fires; record here too as fallback
+      addHistory(scenario,params,'success');
+    }
+    catch(err){
+      addLog({level:'error',message:`Ошибка: ${err.message}`,ts:new Date().toISOString()});
+      addHistory(scenario,params,'error');
+      setRunning(null);
+    }
+  };
+
+  const handleUseInForm=(target,data)=>{
+    setPrefill({target,data,ts:Date.now()});
+    if(target==='user_create')setTab('users');
+    if(target==='org_create')setTab('orgs');
+  };
+
+  // Menu visibility — persisted in localStorage
+  const [hiddenTabs, setHiddenTabs] = useState(() => lsGet('xidbox_hidden_tabs', []));
+  const toggleHideTab = (id) => {
+    setHiddenTabs(prev => {
+      const upd = prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id];
+      lsSet('xidbox_hidden_tabs', upd);
+      return upd;
+    });
+  };
+
+  const ALL_TABS = [
+    { id:'orgs',     ico:'🏢', label:'Организации',    section:'Основное' },
+    { id:'users',    ico:'👤', label:'Пользователи',   section:'Основное' },
+    { id:'profiles', ico:'🎭', label:'Профили',        section:'Основное' },
+    { id:'tickets',  ico:'📋', label:'Заявки',         section:'Основное' },
+    { id:'chains',   ico:'⛓', label:'Цепочки',        section:'Автоматизация' },
+    { id:'datagen',  ico:'⚡', label:'Генератор данных',section:'Автоматизация' },
+    { id:'history',  ico:'🕓', label:'История запусков',section:'Анализ', badge: history.length||null },
+    { id:'rbac',     ico:'🔐', label:'Матрица прав',   section:'Анализ' },
+    { id:'guide',    ico:'📖', label:'Добавить сценарий',section:'Помощь' },
+    { id:'settings', ico:'⚙️', label:'Настройки',      section:'Помощь' },
+  ];
+
+  const visibleTabs = ALL_TABS.filter(t => !hiddenTabs.includes(t.id));
+  // If current tab got hidden — switch to first visible
+  useEffect(() => {
+    if (hiddenTabs.includes(tab)) setTab(visibleTabs[0]?.id || 'orgs');
+  }, [hiddenTabs]);
+
+  // Group by section
+  const sections = [...new Set(ALL_TABS.map(t => t.section))];
+
+  return (
+    <React.Fragment>
+      {/* TOPBAR */}
+      <div className="topbar">
+        <div className="topbar-logo">MY QA Tools</div>
+        <div className="topbar-status">
+          <div className={`status-dot ${wsConnected?'connected':'error'}`} />
+          <span>{wsConnected ? 'backend online' : 'backend offline'}</span>
+          {envs.map(e=>(
+            <button key={e.id} className={`env-pill ${e.label} ${activeEnvId===e.id?'active':''}`}
+              onClick={()=>{setActiveEnvId(e.id);lsSet(LS_ENV_ID,e.id);}}>
+              {e.label}
+            </button>
+          ))}
+          {running && <span className="pill pill-info"><div className="spinner" style={{width:8,height:8,borderWidth:1.5}}/>&nbsp;{running}</span>}
+        </div>
+      </div>
+
+      <div className="main">
+        {/* SIDEBAR */}
+        <div className="sidebar">
+          {sections.map(section => {
+            const items = visibleTabs.filter(t => t.section === section);
+            if (!items.length) return null;
+            return (
+              <div className="sidebar-section" key={section}>
+                <div className="sidebar-label">{section}</div>
+                {items.map(t => (
+                  <button key={t.id} className={`sidebar-item ${tab===t.id?'active':''}`} onClick={()=>setTab(t.id)}>
+                    <span className="sidebar-icon">{t.ico}</span>
+                    {t.label}
+                    {t.badge ? <span className="sidebar-badge">{t.badge}</span> : null}
+                  </button>
+                ))}
+              </div>
+            );
+          })}
+          {/* Settings always visible at bottom */}
+          {hiddenTabs.includes('settings') && (
+            <div className="sidebar-footer">
+              <button className="sidebar-item" onClick={()=>setTab('settings')}>
+                <span className="sidebar-icon">⚙️</span>Настройки
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* CONTENT */}
+        <div className="content">
+          {tab==='orgs'     &&<OrgsPage     runScenario={runScenario} running={running} prefill={prefill} />}
+          {tab==='users'    &&<UsersPage    runScenario={runScenario} running={running} prefill={prefill} />}
+          {tab==='profiles' &&<ProfilesPage runScenario={runScenario} running={running} />}
+          {tab==='tickets'  &&<TicketsPage  runScenario={runScenario} running={running} />}
+          {tab==='chains'   &&<ChainPage    apiPostFn={apiPost} bundles={bundles} addLog={addLog} />}
+          {tab==='rbac'     &&<RbacPage />}
+          {tab==='datagen'  &&<DataGenPage  onUseInForm={handleUseInForm} bundles={bundles} setBundles={setBundles} />}
+          {tab==='history'  &&<HistoryPage  history={history} clearHistory={()=>{setHistory([]);lsSet(LS_HISTORY,[]);}} />}
+          {tab==='guide'    &&<ScenarioGuidePage />}
+          {tab==='settings' &&<SettingsPage envs={envs} setEnvs={setEnvs} activeEnvId={activeEnvId} setActiveEnvId={setActiveEnvId} hiddenTabs={hiddenTabs} toggleHideTab={toggleHideTab} allTabs={ALL_TABS} />}
+
+          <div className="log-pane">
+            <div className="log-header">
+              <span className="log-title">Лог выполнения</span>
+              <span className="log-count">{logs.length}</span>
+              {running&&<span className="pill pill-info" style={{fontSize:10}}><div className="spinner" style={{width:8,height:8,borderWidth:1.5}}/>&nbsp;работает</span>}
+              <button className="log-clear" onClick={()=>setLogs([])}>очистить</button>
+            </div>
+            <div className="log-body" ref={logBodyRef}>
+              {logs.length===0&&<div style={{color:'var(--text3)',fontSize:12,padding:'8px 0'}}>Лог выполнения сценариев…</div>}
+              {logs.map((entry,i)=><LogEntry key={i} entry={entry} />)}
+            </div>
+          </div>
+        </div>
+      </div>
+    </React.Fragment>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

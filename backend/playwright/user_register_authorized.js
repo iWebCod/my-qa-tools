@@ -32,7 +32,7 @@ module.exports = async function userRegisterAuthorized(params, log, config) {
     orgName       = '',   // если пусто — кликаем первый вариант в списке
   } = params;
 
-  const { browser, page } = await createSession({ config, log });
+  const { browser, page } = await createSession({ config, log, runId });
 
   try {
     // ── Выбор организации после логина ──────────────────────────────────
@@ -111,3 +111,4 @@ module.exports = async function userRegisterAuthorized(params, log, config) {
     await closeSession(browser);
   }
 };
+

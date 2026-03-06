@@ -740,13 +740,22 @@ const LS_ENV_ID  = "xidbox_qa_active_env";
 const LS_LOG_HEIGHT = "xidbox_qa_log_height";
 
 const DEFAULT_ENVS = [
-  {id:"dev",  label:"dev",  baseUrl:"",login:"",password:""},
-  {id:"stage",label:"stage",baseUrl:"",login:"",password:""},
-  {id:"prod", label:"prod", baseUrl:"",login:"",password:""},
+  {id:"dev",  label:"dev",  baseUrl:"",login:"",password:"",organizationApiUrl:""},
+  {id:"stage",label:"stage",baseUrl:"",login:"",password:"",organizationApiUrl:""},
+  {id:"prod", label:"prod", baseUrl:"",login:"",password:"",organizationApiUrl:""},
 ];
 
 function lsGet(k,def){try{const v=localStorage.getItem(k);return v?JSON.parse(v):def;}catch{return def;}}
 function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch{}}
+
+const ORG_TYPE_OPTIONS = [
+  { value: 'juristic', label: 'ЮЛ' },
+  { value: 'individual_entrepreneur', label: 'ИП' },
+  { value: 'farming', label: 'КФХ' },
+  { value: 'separate_juristic', label: 'ОП' },
+  { value: 'self_employed', label: 'ФЛ' },
+  { value: 'not_defined', label: 'НО' },
+];
 
 // ─── RBAC DATA ────────────────────────────────────────────────────────────
 const ROLES = ['Анон', 'Пользователь', 'Сист.Адм', 'Адм ИБ', 'Менеджер ИС', 'Гл.Мен.УЗ', 'Менеджер УЗ'];
@@ -820,7 +829,7 @@ function SettingsPage({envs,setEnvs,activeEnvId,setActiveEnvId,hiddenTabs=[],tog
   const update=(k)=>(ev)=>setForm(f=>({...f,[k]:ev.target.value}));
   const save=()=>{const updated=envs.map(e=>e.id===editId?{...e,...form}:e);setEnvs(updated);lsSet(LS_ENVS,updated);setSaved(true);setTimeout(()=>setSaved(false),1800);};
   const activate=()=>{setActiveEnvId(editId);lsSet(LS_ENV_ID,editId);};
-  const addEnv=()=>{if(!newLabel.trim())return;const id=`env_${Date.now()}`;const ne={id,label:newLabel.trim(),baseUrl:'',login:'',password:''};const updated=[...envs,ne];setEnvs(updated);lsSet(LS_ENVS,updated);setNewLabel('');setEditId(id);};
+  const addEnv=()=>{if(!newLabel.trim())return;const id=`env_${Date.now()}`;const ne={id,label:newLabel.trim(),baseUrl:'',login:'',password:'',organizationApiUrl:''};const updated=[...envs,ne];setEnvs(updated);lsSet(LS_ENVS,updated);setNewLabel('');setEditId(id);};
   const removeEnv=(id)=>{if(envs.length<=1)return;const updated=envs.filter(e=>e.id!==id);setEnvs(updated);lsSet(LS_ENVS,updated);if(editId===id)setEditId(updated[0].id);if(activeEnvId===id){setActiveEnvId(updated[0].id);lsSet(LS_ENV_ID,updated[0].id);}};
 
   const isActive=editId===activeEnvId;
@@ -866,6 +875,10 @@ function SettingsPage({envs,setEnvs,activeEnvId,setActiveEnvId,hiddenTabs=[],tog
           <div className="form-group full">
             <label className="form-label">Base URL <span>*</span></label>
             <input className="form-input" placeholder="https://xidbox.example.com" value={form.baseUrl||''} onChange={update('baseUrl')} />
+          </div>
+          <div className="form-group full">
+            <label className="form-label">Organization API URL</label>
+            <input className="form-input" placeholder="http://10.22.255.72:8095" value={form.organizationApiUrl||''} onChange={update('organizationApiUrl')} />
           </div>
           <div className="form-group">
             <label className="form-label">Логин <span>*</span></label>
@@ -1202,8 +1215,8 @@ function ProfilesPage({runScenario,running}){
 
 // ─── ORGANIZATIONS PAGE ───────────────────────────────────────────────────
 function OrgsPage({runScenario,running,prefill}){
-  const [form,setForm]=useState({name:'',shortName:'',inn:'',kpp:'',ogrn:'',type:'ЮЛ',description:'',address:'',registrationDate:''});
-  useEffect(()=>{if(prefill?.target==='org_create'&&prefill.data){const d=prefill.data;setForm(f=>({...f,name:d.fullName||f.name,shortName:d.shortName||f.shortName,inn:d.orgInn||f.inn,kpp:d.kpp||f.kpp,ogrn:d.ogrn||f.ogrn,address:d.address||f.address,registrationDate:d.registrationDate||f.registrationDate}));}},[prefill]);
+  const [form,setForm]=useState({name:'',shortName:'',inn:'',kpp:'',ogrn:'',type:'juristic',description:'',address:'',registrationDate:''});
+  useEffect(()=>{if(prefill?.target==='org_create'&&prefill.data){const d=prefill.data;setForm(f=>({...f,name:d.fullName||f.name,shortName:d.shortName||f.shortName,inn:d.orgInn||f.inn,kpp:d.kpp||f.kpp,ogrn:d.ogrn||f.ogrn,address:d.address||f.address,registrationDate:d.registrationDate||f.registrationDate,type:d.type||f.type}));}},[prefill]);
   return (
     <div className="panel">
       <div className="panel-header"><div className="panel-title">Организации</div><div className="panel-sub">Управление организациями в XIDBOX</div></div>
@@ -1212,7 +1225,7 @@ function OrgsPage({runScenario,running,prefill}){
         <div className="form-grid">
           <div className="form-group full"><label className="form-label">Полное наименование <span>*</span></label><input className="form-input" placeholder='ООО "Пример"' value={form.name} onChange={e=>setForm({...form,name:e.target.value})} /></div>
           <div className="form-group"><label className="form-label">Краткое наименование</label><input className="form-input" placeholder="Пример" value={form.shortName} onChange={e=>setForm({...form,shortName:e.target.value})} /></div>
-          <div className="form-group"><label className="form-label">Тип</label><select className="form-input" value={form.type} onChange={e=>setForm({...form,type:e.target.value})}><option>ЮЛ</option><option>ИП</option><option>ФЛ</option><option>ОП</option></select></div>
+          <div className="form-group"><label className="form-label">Тип</label><select className="form-input" value={form.type} onChange={e=>setForm({...form,type:e.target.value})}>{ORG_TYPE_OPTIONS.map(t=><option key={t.value} value={t.value}>{`${t.label} (${t.value})`}</option>)}</select></div>
           <div className="form-group"><label className="form-label">ИНН</label><input className="form-input" placeholder="7712345678" value={form.inn} onChange={e=>setForm({...form,inn:e.target.value})} /></div>
           <div className="form-group"><label className="form-label">КПП</label><input className="form-input" placeholder="771201001" value={form.kpp} onChange={e=>setForm({...form,kpp:e.target.value})} /></div>
           <div className="form-group"><label className="form-label">ОГРН</label><input className="form-input" placeholder="1027700132195" value={form.ogrn||''} onChange={e=>setForm({...form,ogrn:e.target.value})} /></div>
@@ -1323,7 +1336,7 @@ const CHAINS = [
         getParams: (b) => b?.org1 ? {
           name: b.org1.fullName, shortName: b.org1.shortName,
           inn: b.org1.orgInn, kpp: b.org1.kpp, ogrn: b.org1.ogrn||'',
-          address: b.org1.address, registrationDate: b.org1.registrationDate, type: 'ЮЛ'
+          address: b.org1.address, registrationDate: b.org1.registrationDate, type: b.org1.type || 'juristic'
         } : {},
       },
       {
@@ -1367,7 +1380,7 @@ const CHAINS = [
         getParams: (b) => b?.org1 ? {
           name: b.org1.fullName, shortName: b.org1.shortName,
           inn: b.org1.orgInn, kpp: b.org1.kpp, ogrn: b.org1.ogrn||'',
-          address: b.org1.address, registrationDate: b.org1.registrationDate, type: 'ЮЛ'
+          address: b.org1.address, registrationDate: b.org1.registrationDate, type: b.org1.type || 'juristic'
         } : {},
       },
       {
@@ -1393,7 +1406,7 @@ const CHAINS = [
 // Step status colours
 const STEP_COLOR = { done:'var(--success)', error:'var(--error)', running:'var(--accent)' };
 
-function ChainPage({ apiPostFn, bundles, addLog }){
+function ChainPage({ apiPostFn, bundles, addLog, waitForRunDone }){
   // chainState: { [chainId]: { status: 'idle'|'running'|'done'|'error', steps: {[i]: 'waiting'|'running'|'done'|'error'} } }
   const [chainState, setChainState] = useState({});
 
@@ -1412,9 +1425,16 @@ function ChainPage({ apiPostFn, bundles, addLog }){
       addLog({ level: 'info', message: `  [${i+1}/${chain.steps.length}] ${step.label}…`, ts: new Date().toISOString() });
       try {
         const params = step.getParams(bundles);
-        await apiPostFn(`/api/run/${step.scenarioId}`, params);
-        // wait for backend done signal — simplified with timeout; production: await WS 'done'
-        await new Promise(res => setTimeout(res, 2800));
+        const started = await apiPostFn(`/api/run/${step.scenarioId}`, { params });
+        const runId = started?.runId;
+        if (!runId) throw new Error('runId не получен от backend');
+
+        const done = await waitForRunDone(runId);
+        if (done.status !== 'success') {
+          const reason = done.error || `статус: ${done.status}`;
+          throw new Error(reason);
+        }
+
         updStep(cid, i, 'done');
         addLog({ level: 'success', message: `  ✓ ${step.label}`, ts: new Date().toISOString() });
       } catch (err) {
@@ -1601,6 +1621,7 @@ function HistoryPage({ history, clearHistory }) {
             { h.env && <span className="pill pill-info" style={{ fontSize: 10 }}>{h.env}</span> }
             { h.status === 'success' && <span className="pill pill-success" style={{ fontSize: 10 }}>✓ OK</span> }
             { h.status === 'error'   && <span className="pill" style={{ background:'rgba(231,76,60,.12)',color:'var(--error)',border:'1px solid rgba(231,76,60,.3)',fontSize:10 }}>✗ Ошибка</span> }
+            { h.status === 'stopped' && <span className="pill" style={{ background:'rgba(243,156,18,.14)',color:'var(--warn)',border:'1px solid rgba(243,156,18,.35)',fontSize:10 }}>■ Остановлено</span> }
             { h.chain && <span className="pill pill-info" style={{ fontSize: 10 }}>⛓ {h.chain}</span> }
             <button
               onClick={() => copyRow(h)}
@@ -1748,6 +1769,7 @@ function App(){
   const [tab,setTab]=useState('orgs');
   const [logs,setLogs]=useState([]);
   const [running,setRunning]=useState(null);
+  const [activeRunId,setActiveRunId]=useState(null);
   const [wsConnected,setWsConnected]=useState(false);
   const [envs,setEnvs]=useState(()=>lsGet(LS_ENVS,DEFAULT_ENVS));
   const [activeEnvId,setActiveEnvId]=useState(()=>localStorage.getItem(LS_ENV_ID)||'dev');
@@ -1758,12 +1780,14 @@ function App(){
   const [bundles,setBundles]=useState(()=>lsGet('xidbox_qa_bundles',null));
   const logBodyRef=useRef(null);
   const wsRef=useRef(null);
+  const runMetaRef=useRef({});
+  const doneWaitersRef=useRef(new Map());
 
   const activeEnv=envs.find(e=>e.id===activeEnvId)||envs[0]||{};
 
   useEffect(()=>{
     if(activeEnv.baseUrl){
-      apiPost('/api/config',{baseUrl:activeEnv.baseUrl,login:activeEnv.login,password:activeEnv.password}).catch(()=>{});
+      apiPost('/api/config',{baseUrl:activeEnv.baseUrl,login:activeEnv.login,password:activeEnv.password,organizationApiUrl:activeEnv.organizationApiUrl||''}).catch(()=>{});
     }
   },[activeEnvId,envs]);
 
@@ -1776,7 +1800,23 @@ function App(){
       ws.onmessage=(ev)=>{
         const msg=JSON.parse(ev.data);
         if(msg.type==='log'){setLogs(prev=>[...prev.slice(-600),{level:msg.level,message:msg.message,ts:msg.ts}]);}
-        if(msg.type==='done'){setRunning(null);}
+        if(msg.type==='done'){
+          const waiter = doneWaitersRef.current.get(msg.runId);
+          if (waiter) {
+            clearTimeout(waiter.timer);
+            waiter.resolve(msg);
+            doneWaitersRef.current.delete(msg.runId);
+          }
+
+          setRunning(null);
+          setActiveRunId(null);
+          const meta = runMetaRef.current[msg.runId];
+          if (meta) {
+            const status = msg.status === 'success' ? 'success' : (msg.status === 'stopped' ? 'stopped' : 'error');
+            addHistory(meta.scenario, meta.params, status);
+            delete runMetaRef.current[msg.runId];
+          }
+        }
       };
     }
     connect();
@@ -1819,19 +1859,43 @@ function App(){
     setHistory(prev=>{const upd=[...prev.slice(-499),entry];lsSet(LS_HISTORY,upd);return upd;});
   };
 
+  const waitForRunDone=(runId, timeoutMs=180000)=>{
+    return new Promise((resolve, reject)=>{
+      const timer = setTimeout(()=>{
+        doneWaitersRef.current.delete(runId);
+        reject(new Error(`Таймаут ожидания завершения runId=${runId}`));
+      }, timeoutMs);
+      doneWaitersRef.current.set(runId, { resolve, reject, timer });
+    });
+  };
+
   const runScenario=async(scenario,params)=>{
     if(running)return;
     setRunning(scenario);
     addLog({level:'info',message:`─── Старт: ${scenario} [${activeEnv.label||activeEnvId}] ───`,ts:new Date().toISOString()});
     try{
-      await apiPost(`/api/run/${scenario}`,params);
-      // history success recorded when WS 'done' fires; record here too as fallback
-      addHistory(scenario,params,'success');
+      const resp = await apiPost(`/api/run/${scenario}`,{ params });
+      if(resp?.runId){
+        setActiveRunId(resp.runId);
+        runMetaRef.current[resp.runId] = { scenario, params };
+      }
     }
     catch(err){
       addLog({level:'error',message:`Ошибка: ${err.message}`,ts:new Date().toISOString()});
       addHistory(scenario,params,'error');
       setRunning(null);
+      setActiveRunId(null);
+    }
+  };
+
+  const stopScenario=async()=>{
+    if(!activeRunId)return;
+    try{
+      await apiPost(`/api/run/stop/${activeRunId}`,{});
+      addLog({level:'warn',message:`Запрошена остановка runId=${activeRunId}`,ts:new Date().toISOString()});
+    }
+    catch(err){
+      addLog({level:'error',message:`Не удалось остановить: ${err.message}`,ts:new Date().toISOString()});
     }
   };
 
@@ -1926,7 +1990,7 @@ function App(){
           {tab==='users'    &&<UsersPage    runScenario={runScenario} running={running} prefill={prefill} />}
           {tab==='profiles' &&<ProfilesPage runScenario={runScenario} running={running} />}
           {tab==='tickets'  &&<TicketsPage  runScenario={runScenario} running={running} />}
-          {tab==='chains'   &&<ChainPage    apiPostFn={apiPost} bundles={bundles} addLog={addLog} />}
+          {tab==='chains'   &&<ChainPage    apiPostFn={apiPost} bundles={bundles} addLog={addLog} waitForRunDone={waitForRunDone} />}
           {tab==='rbac'     &&<RbacPage />}
           {tab==='datagen'  &&<DataGenPage  onUseInForm={handleUseInForm} bundles={bundles} setBundles={setBundles} />}
           {tab==='history'  &&<HistoryPage  history={history} clearHistory={()=>{setHistory([]);lsSet(LS_HISTORY,[]);}} />}
@@ -1939,6 +2003,7 @@ function App(){
               <span className="log-title">Лог выполнения</span>
               <span className="log-count">{logs.length}</span>
               {running&&<span className="pill pill-info" style={{fontSize:10}}><div className="spinner" style={{width:8,height:8,borderWidth:1.5}}/>&nbsp;работает</span>}
+              {running&&<button className="log-clear" onClick={stopScenario} title="Остановить выполнение">стоп</button>}
               <button className="log-clear" onClick={()=>setAndSaveLogHeight(logHeight+80)} title="Увеличить высоту">+</button>
               <button className="log-clear" onClick={()=>setAndSaveLogHeight(logHeight-80)} title="Уменьшить высоту">-</button>
               <button className="log-clear" onClick={()=>setAndSaveLogHeight(220)} title="Сбросить высоту">100%</button>
@@ -1959,5 +2024,12 @@ ReactDOM.createRoot(document.getElementById('root')).render(<App />);
 </script>
 </body>
 </html>
+
+
+
+
+
+
+
 
 

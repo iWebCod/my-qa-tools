@@ -1,7 +1,7 @@
 const { createSession, screenshotOnError, closeSession } = require('./base');
 const path = require('path');
-module.exports = async function user_export({ config, params, log }) {
-  const { browser, page, context } = await createSession({ config, log });
+module.exports = async function user_export({ config, params, log, runId }) {
+  const { browser, page, context } = await createSession({ config, log, runId });
   try {
     log('info', `Переходим к списку пользователей...`);
     await page.goto(`${config.baseUrl}/users`, { waitUntil: 'networkidle' });
@@ -16,3 +16,4 @@ module.exports = async function user_export({ config, params, log }) {
   } catch (err) { await screenshotOnError(page, log); throw err; }
   finally { await closeSession(browser); }
 };
+

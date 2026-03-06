@@ -1,6 +1,6 @@
 const { createSession, screenshotOnError, closeSession } = require('./base');
-module.exports = async function user_unblock({ config, params, log }) {
-  const { browser, page } = await createSession({ config, log });
+module.exports = async function user_unblock({ config, params, log, runId }) {
+  const { browser, page } = await createSession({ config, log, runId });
   try {
     log('info', `Ищем пользователя: ${params.login}`);
     await page.goto(`${config.baseUrl}/users`, { waitUntil: 'networkidle' });
@@ -16,3 +16,4 @@ module.exports = async function user_unblock({ config, params, log }) {
   } catch (err) { await screenshotOnError(page, log); throw err; }
   finally { await closeSession(browser); }
 };
+

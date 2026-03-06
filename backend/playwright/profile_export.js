@@ -1,6 +1,6 @@
 const { createSession, screenshotOnError, closeSession } = require('./base');
-module.exports = async function profile_export({ config, params, log }) {
-  const { browser, page } = await createSession({ config, log });
+module.exports = async function profile_export({ config, params, log, runId }) {
+  const { browser, page } = await createSession({ config, log, runId });
   try {
     log('info', 'Сценарий: profile export');
     log('warn', 'Сценарий в разработке — требует настройки селекторов под ваш стенд');
@@ -9,3 +9,4 @@ module.exports = async function profile_export({ config, params, log }) {
   } catch (err) { await screenshotOnError(page, log); throw err; }
   finally { await closeSession(browser); }
 };
+

@@ -1,0 +1,10 @@
+{
+  "name": "xidbox-qa-tool",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "release:patch": "node scripts/release-version.js patch",
+    "release:minor": "node scripts/release-version.js minor",
+    "release:major": "node scripts/release-version.js major"
+  }
+}

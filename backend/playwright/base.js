@@ -4,10 +4,14 @@ const { chromium } = require('playwright');
  * Creates an authenticated browser session for XIDBOX
  * Returns { browser, page } — caller must close browser when done
  */
-async function createSession({ config, log, headless = true }) {
+async function createSession({ config, log, runId = null, headless = true }) {
   log('info', `Запуск браузера → ${config.baseUrl}`);
 
   const browser = await chromium.launch({ headless });
+  if (runId && typeof global.registerRunBrowser === 'function') {
+    global.registerRunBrowser(runId, browser);
+  }
+
   const context = await browser.newContext({
     ignoreHTTPSErrors: true,
   });
@@ -20,7 +24,7 @@ async function createSession({ config, log, headless = true }) {
     }
   });
 
-  log('info', `Открываем страницу входа...`);
+  log('info', 'Открываем страницу входа...');
   await page.goto(`${config.baseUrl}/login`, { waitUntil: 'networkidle' });
 
   // Fill login form
@@ -31,7 +35,7 @@ async function createSession({ config, log, headless = true }) {
 
   // Wait for redirect after login
   await page.waitForURL(url => !url.includes('/login'), { timeout: 10000 });
-  log('success', `Авторизация успешна`);
+  log('success', 'Авторизация успешна');
 
   return { browser, page, context };
 }
@@ -52,8 +56,12 @@ async function screenshotOnError(page, log) {
 /**
  * Safely close browser
  */
-async function closeSession(browser) {
+async function closeSession(browser, runId = null) {
   try { await browser.close(); } catch (e) { /* ignore */ }
+  if (runId && typeof global.unregisterRunBrowser === 'function') {
+    global.unregisterRunBrowser(runId);
+  }
 }
 
 module.exports = { createSession, screenshotOnError, closeSession };
+

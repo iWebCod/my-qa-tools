@@ -4,8 +4,8 @@ const { createSession, screenshotOnError, closeSession } = require('./base');
  * Scenario: Create User (registration by authorized person)
  * Params: { login, email, lastName, firstName, middleName, password, organizationId, organizationName }
  */
-module.exports = async function user_create({ config, params, log }) {
-  const { browser, page } = await createSession({ config, log });
+module.exports = async function user_create({ config, params, log, runId }) {
+  const { browser, page } = await createSession({ config, log, runId });
 
   try {
     log('info', `Переходим к списку пользователей...`);
@@ -73,3 +73,4 @@ module.exports = async function user_create({ config, params, log }) {
     await closeSession(browser);
   }
 };
+

@@ -11,8 +11,8 @@ async function findUser(page, config, identifier, log) {
 }
 
 // user_block.js
-module.exports = async function user_block({ config, params, log }) {
-  const { browser, page } = await createSession({ config, log });
+module.exports = async function user_block({ config, params, log, runId }) {
+  const { browser, page } = await createSession({ config, log, runId });
   try {
     log('info', `Ищем пользователя: ${params.login}`);
     await findUser(page, config, params.login, log);
@@ -35,3 +35,4 @@ module.exports = async function user_block({ config, params, log }) {
     await closeSession(browser);
   }
 };
+

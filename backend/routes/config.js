@@ -20,7 +20,13 @@ router.post('/', (req, res) => {
   res.json({ ok: true });
 });
 
-router.get('/get', () => config);
+router.get('/get', (req, res) => {
+  res.json({
+    baseUrl: config.baseUrl,
+    login: config.login,
+    hasPassword: Boolean(config.password),
+  });
+});
 
 module.exports = router;
 module.exports.getConfig = () => config;

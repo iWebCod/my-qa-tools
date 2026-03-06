@@ -303,13 +303,20 @@
 
     /* LOG PANE */
     .log-pane {
-      height: 220px;
-      background: var(--surface);
+      height: 220px;`r`n      min-height: 140px;`r`n      background: var(--surface);
       border-top: 1px solid var(--border);
       display: flex;
       flex-direction: column;
       flex-shrink: 0;
     }
+    .log-resizer {
+      height: 8px;
+      cursor: ns-resize;
+      border-bottom: 1px solid var(--border);
+      background: linear-gradient(180deg, rgba(79,143,255,0.12), transparent);
+      flex-shrink: 0;
+    }
+    .log-resizer:hover { background: linear-gradient(180deg, rgba(79,143,255,0.2), transparent); }
     .log-header {
       padding: 8px 16px;
       display: flex;
@@ -730,6 +737,7 @@ function generateAllBundles(){
 const LS_BUNDLES = "xidbox_qa_bundles";
 const LS_ENVS    = "xidbox_qa_envs";
 const LS_ENV_ID  = "xidbox_qa_active_env";
+const LS_LOG_HEIGHT = "xidbox_qa_log_height";
 
 const DEFAULT_ENVS = [
   {id:"dev",  label:"dev",  baseUrl:"",login:"",password:""},
@@ -777,7 +785,8 @@ const RBAC = [
 ];
 
 // ─── BACKEND API ─────────────────────────────────────────────────────────
-const API_BASE = 'http://localhost:3001';
+const API_BASE = window.location.origin && window.location.origin.startsWith('http') ? window.location.origin : 'http://localhost:3001';
+const WS_BASE = `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host || 'localhost:3001'}`;
 async function apiPost(path, body){const r=await fetch(`${API_BASE}${path}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});return r.json();}
 async function apiGet(path){const r=await fetch(`${API_BASE}${path}`);return r.json();}
 
@@ -1744,6 +1753,7 @@ function App(){
   const [activeEnvId,setActiveEnvId]=useState(()=>localStorage.getItem(LS_ENV_ID)||'dev');
   const [prefill,setPrefill]=useState(null);
   const [history,setHistory]=useState(()=>lsGet(LS_HISTORY,[]));
+  const [logHeight,setLogHeight]=useState(()=>{const v=Number(localStorage.getItem(LS_LOG_HEIGHT));return Number.isFinite(v)&&v>=140&&v<=900?v:220;});
   // bundles lifted to App so chains + pages share same data
   const [bundles,setBundles]=useState(()=>lsGet('xidbox_qa_bundles',null));
   const logBodyRef=useRef(null);
@@ -1759,7 +1769,7 @@ function App(){
 
   useEffect(()=>{
     function connect(){
-      const ws=new WebSocket('ws://localhost:3001');
+      const ws=new WebSocket(WS_BASE);
       wsRef.current=ws;
       ws.onopen=()=>setWsConnected(true);
       ws.onclose=()=>{setWsConnected(false);setTimeout(connect,3000);};
@@ -1776,6 +1786,33 @@ function App(){
   useEffect(()=>{if(logBodyRef.current)logBodyRef.current.scrollTop=logBodyRef.current.scrollHeight;},[logs]);
 
   const addLog=(entry)=>setLogs(prev=>[...prev.slice(-600),entry]);
+
+  const clampLogHeight=(value)=>{const max=Math.max(220,Math.floor(window.innerHeight*0.85));return Math.min(max,Math.max(140,Math.floor(value)));};
+  const setAndSaveLogHeight=(value)=>{const next=clampLogHeight(value);setLogHeight(next);lsSet(LS_LOG_HEIGHT,next);};
+  const startLogResize=(ev)=>{
+    ev.preventDefault();
+    const startY=ev.clientY;
+    const startHeight=logHeight;
+    const prevUserSelect=document.body.style.userSelect;
+    const prevCursor=document.body.style.cursor;
+    document.body.style.userSelect='none';
+    document.body.style.cursor='ns-resize';
+    let latestHeight=startHeight;
+    const onMove=(moveEv)=>{
+      const delta=startY-moveEv.clientY;
+      latestHeight=clampLogHeight(startHeight+delta);
+      setLogHeight(latestHeight);
+    };
+    const onUp=()=>{
+      document.removeEventListener('mousemove',onMove);
+      document.removeEventListener('mouseup',onUp);
+      document.body.style.userSelect=prevUserSelect;
+      document.body.style.cursor=prevCursor;
+      lsSet(LS_LOG_HEIGHT,latestHeight);
+    };
+    document.addEventListener('mousemove',onMove);
+    document.addEventListener('mouseup',onUp);
+  };
 
   const addHistory=(scenario,params,status)=>{
     const entry={scenario,params,status,env:activeEnv.label||activeEnvId,ts:new Date().toISOString()};
@@ -1896,11 +1933,15 @@ function App(){
           {tab==='guide'    &&<ScenarioGuidePage />}
           {tab==='settings' &&<SettingsPage envs={envs} setEnvs={setEnvs} activeEnvId={activeEnvId} setActiveEnvId={setActiveEnvId} hiddenTabs={hiddenTabs} toggleHideTab={toggleHideTab} allTabs={ALL_TABS} />}
 
-          <div className="log-pane">
+          <div className="log-pane" style={{height:logHeight}}>
+            <div className="log-resizer" onMouseDown={startLogResize} title="Потяните, чтобы изменить высоту лога" />
             <div className="log-header">
               <span className="log-title">Лог выполнения</span>
               <span className="log-count">{logs.length}</span>
               {running&&<span className="pill pill-info" style={{fontSize:10}}><div className="spinner" style={{width:8,height:8,borderWidth:1.5}}/>&nbsp;работает</span>}
+              <button className="log-clear" onClick={()=>setAndSaveLogHeight(logHeight+80)} title="Увеличить высоту">+</button>
+              <button className="log-clear" onClick={()=>setAndSaveLogHeight(logHeight-80)} title="Уменьшить высоту">-</button>
+              <button className="log-clear" onClick={()=>setAndSaveLogHeight(220)} title="Сбросить высоту">100%</button>
               <button className="log-clear" onClick={()=>setLogs([])}>очистить</button>
             </div>
             <div className="log-body" ref={logBodyRef}>
@@ -1918,3 +1959,5 @@ ReactDOM.createRoot(document.getElementById('root')).render(<App />);
 </script>
 </body>
 </html>
+
+

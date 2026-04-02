@@ -22,6 +22,7 @@ const scenarios = {
   'profile.export': require('../playwright/profile_export'),
   'ticket.export': require('../playwright/ticket_export'),
   'user.register_authorized': require('../playwright/user_register_authorized'),
+  'user.register_api': require('../playwright/user_register_api'),
 };
 
 // Active runs

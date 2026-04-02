@@ -421,7 +421,7 @@ module.exports = async function org_create({ config, params, log, runId }) {
     throw new Error('Invalid KPP: expected 9 digits');
   }
   if (supportsOgrn(normalizedType) && ogrn) {
-    const ogrnOk = normalizedType === 'individual_entrepreneur' ? validOgrnip15(ogrn) : validOgrn13(ogrn);
+    const ogrnOk = (normalizedType === 'individual_entrepreneur' || normalizedType === 'farming') ? validOgrnip15(ogrn) : validOgrn13(ogrn);
     if (!ogrnOk) throw new Error('Invalid OGRN/OGRNIP for selected type');
   }
 

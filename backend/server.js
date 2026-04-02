@@ -73,6 +73,32 @@ app.use('/api/settings', require('./routes/settings'));
 // Health check
 app.get('/health', (req, res) => res.json({ ok: true }));
 
+// Bootstrap: load active env from settings.json into in-memory config
+(function bootstrapConfig() {
+  const fs = require('fs');
+  const settingsPath = require('path').join(__dirname, 'settings.json');
+  try {
+    const data = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+    const envs = Array.isArray(data.envs) ? data.envs : [];
+    const activeId = data.activeEnvId;
+    const env = envs.find(e => e.id === activeId) || envs[0];
+    if (env) {
+      const configRoute = require('./routes/config');
+      const cfg = configRoute.getConfig();
+      if (env.baseUrl)           cfg.baseUrl           = String(env.baseUrl).replace(/\/$/, '');
+      if (env.login)             cfg.login             = String(env.login);
+      if (env.password)          cfg.password          = String(env.password);
+      if (env.organizationApiUrl !== undefined) cfg.organizationApiUrl = String(env.organizationApiUrl).replace(/\/$/, '');
+      if (env.apiBaseUrl !== undefined)         cfg.apiBaseUrl         = String(env.apiBaseUrl).replace(/\/$/, '');
+      if (env.profileUuid !== undefined)        cfg.profileUuid        = String(env.profileUuid).trim();
+      if (env.authToken !== undefined)          cfg.authToken          = String(env.authToken).trim();
+      console.log(`Config loaded from settings.json (env: ${env.label || env.id})`);
+    }
+  } catch (e) {
+    // settings.json not found or invalid — skip
+  }
+})();
+
 server.listen(PORT, () => {
   console.log(`XIDBOX QA Backend running on port ${PORT}`);
   console.log(`UI: http://localhost:${PORT}`);

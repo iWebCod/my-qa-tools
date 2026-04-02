@@ -7,6 +7,9 @@ let config = {
   login: '',
   password: '',
   organizationApiUrl: '',
+  apiBaseUrl: '',
+  profileUuid: '',
+  authToken: '',
   maxRuns: 200,
 };
 
@@ -19,11 +22,14 @@ router.get('/', (req, res) => {
 });
 
 router.post('/', (req, res) => {
-  const { baseUrl, login, password, organizationApiUrl, maxRuns } = req.body;
+  const { baseUrl, login, password, organizationApiUrl, apiBaseUrl, profileUuid, authToken, maxRuns } = req.body;
   if (typeof baseUrl === 'string' && baseUrl.trim()) config.baseUrl = baseUrl.replace(/\/$/, '');
   if (typeof login === 'string' && login.trim()) config.login = login;
   if (typeof password === 'string' && password.trim()) config.password = password;
   if (typeof organizationApiUrl === 'string') config.organizationApiUrl = organizationApiUrl.replace(/\/$/, '');
+  if (typeof apiBaseUrl === 'string') config.apiBaseUrl = apiBaseUrl.replace(/\/$/, '');
+  if (typeof profileUuid === 'string') config.profileUuid = profileUuid.trim();
+  if (typeof authToken === 'string') config.authToken = authToken.trim();
   if (typeof maxRuns === 'number' && maxRuns >= 10) config.maxRuns = Math.min(1000, maxRuns);
   res.json({ ok: true });
 });
@@ -33,6 +39,7 @@ router.get('/get', (req, res) => {
     baseUrl: config.baseUrl,
     login: config.login,
     organizationApiUrl: config.organizationApiUrl,
+    apiBaseUrl: config.apiBaseUrl,
     hasPassword: Boolean(config.password),
     maxRuns: config.maxRuns,
   });

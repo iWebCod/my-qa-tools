@@ -872,6 +872,9 @@ function createDefaultEnv(id,label){
     login:"",
     password:"",
     organizationApiUrl:"",
+    apiBaseUrl:"",
+    profileUuid:"",
+    authToken:"",
     orgNameBrands:DEFAULT_ORG_NAME_BRANDS.join('\n'),
     orgNameTemplates:{...DEFAULT_ORG_NAME_TEMPLATES},
   };
@@ -888,7 +891,7 @@ function looksCorruptedText(value){
   const clean=text.replace(/\{(brand|lastName|firstName|middleName)\}/g,'').trim();
   const questionCount=(text.match(/\?/g)||[]).length;
   const hasLetters=/[A-Za-zА-Яа-яЁё]/.test(clean);
-  return questionCount>=3&&!hasLetters;
+  return questionCount>=2&&!hasLetters;
 }
 
 function sanitizeOrgNameBrands(brands){
@@ -1067,6 +1070,18 @@ function SettingsPage({envs,setEnvs,activeEnvId,setActiveEnvId,hiddenTabs=[],tog
           <div className="form-group full">
             <label className="form-label">Organization API URL</label>
             <input className="form-input" placeholder="http://10.22.255.72:8095" value={form.organizationApiUrl||''} onChange={update('organizationApiUrl')} />
+          </div>
+          <div className="form-group full">
+            <label className="form-label">API Base URL (прямой IP, минуя nginx)</label>
+            <input className="form-input" placeholder="http://10.22.255.72:8090" value={form.apiBaseUrl||''} onChange={update('apiBaseUrl')} />
+          </div>
+          <div className="form-group full">
+            <label className="form-label">Profile UUID (x-idbox-user-profile-uuid)</label>
+            <input className="form-input" placeholder="be57e686-14da-4303-9672-beee75bf85d3" value={form.profileUuid||''} onChange={update('profileUuid')} />
+          </div>
+          <div className="form-group full">
+            <label className="form-label">Auth Token (Bearer)</label>
+            <input className="form-input" type="password" placeholder="eyJhbGciOiJSUzI1NiJ9..." value={form.authToken||''} onChange={update('authToken')} />
           </div>
           <div className="form-group full">
             <label className="form-label">Org Name Brands (one per line)</label>
@@ -1292,24 +1307,28 @@ function DataGenPage({ onUseInForm, bundles: externalBundles, setBundles: setExt
 }
 
 // ─── USERS PAGE ───────────────────────────────────────────────────────────
+const LS_REG_ORG='xidbox_qa_reg_org';
 function UsersPage({runScenario,running,prefill}){
-  const [regForm,setRegForm]=useState({orgInn:'',orgName:'',lastName:'',firstName:'',middleName:'',birthday:'',inn:'',snils:'',login:'',personalEmail:'',workEmail:''});
+  const [regForm,setRegForm]=useState(()=>{
+    const saved=lsGet(LS_REG_ORG,{});
+    return {orgUuid:saved.orgUuid||'',lastName:'',firstName:'',middleName:'',birthday:'',inn:'',snils:'',login:'',personalEmail:'',workEmail:''};
+  });
   const [blockForm,setBlockForm]=useState({login:'',blockType:'temporary',reason:''});
   const [resetForm,setResetForm]=useState({login:''});
-  const regenerateRegForm=()=>{const p=generatePerson();setRegForm(f=>({...f,lastName:p.lastName||'',firstName:p.firstName||'',middleName:p.middleName||'',birthday:p.doc_birthDate||'',inn:p.inn||'',snils:p.snils||'',login:p.login||'',personalEmail:p.email||'',workEmail:f.workEmail||''}));};
+  const setOrgField=(field)=>e=>{const val=e.target.value;setRegForm(f=>{const next={...f,[field]:val};lsSet(LS_REG_ORG,{orgUuid:next.orgUuid});return next;});};
+  const regenerateRegForm=()=>{const p=generatePerson();setRegForm(f=>({...f,lastName:p.lastName||'',firstName:p.firstName||'',middleName:p.middleName||'',birthday:p.birthday||'',inn:p.inn||'',snils:p.snils||'',login:p.login||'',personalEmail:p.email||'',workEmail:p.email||''}));};
   const f=(form,setForm)=>(field)=>e=>setForm({...form,[field]:e.target.value});
   const fr=f(regForm,setRegForm);
   return (
     <div className="panel">
       <div className="panel-header"><div className="panel-title">Пользователи</div><div className="panel-sub">Управление учётными записями XIDBOX</div></div>
 
-      {/* Регистрация уполномоченным лицом — реальные селекторы из codegen */}
+      {/* Регистрация уполномоченным лицом — API */}
       <div className="card">
         <div className="card-title"><span className="card-title-icon">📋</span> Регистрация пользователя уполномоченным лицом</div>
-        <div style={{fontSize:12,color:'var(--text3)',marginBottom:14}}>Автоматизирует полный wizard: поиск орг по ИНН → ФИО + датапикер → ИНН/СНИЛС → логин + email</div>
+        <div style={{fontSize:12,color:'var(--text3)',marginBottom:14}}>Два API-вызова: sign-data → order. UUID организации сохраняется между перезагрузками, сбрасывается только кнопкой ↺.</div>
         <div className="form-grid">
-          <div className="form-group"><label className="form-label">ИНН организации <span>*</span></label><input className="form-input" placeholder="6164137904" value={regForm.orgInn} onChange={fr('orgInn')} /></div>
-          <div className="form-group"><label className="form-label">Название орг. (для выбора)</label><input className="form-input" placeholder="Альфа (оставьте пустым = первая)" value={regForm.orgName} onChange={fr('orgName')} /></div>
+          <div className="form-group" style={{gridColumn:'1/-1'}}><label className="form-label">UUID организации (из БД) <span>*</span></label><input className="form-input" placeholder="вставьте UUID из формы Организации" value={regForm.orgUuid} onChange={setOrgField('orgUuid')} /></div>
           <div className="form-group"><label className="form-label">Фамилия <span>*</span></label><input className="form-input" placeholder="Иванов" value={regForm.lastName} onChange={fr('lastName')} /></div>
           <div className="form-group"><label className="form-label">Имя <span>*</span></label><input className="form-input" placeholder="Иван" value={regForm.firstName} onChange={fr('firstName')} /></div>
           <div className="form-group"><label className="form-label">Отчество</label><input className="form-input" placeholder="Иванович" value={regForm.middleName} onChange={fr('middleName')} /></div>
@@ -1321,9 +1340,9 @@ function UsersPage({runScenario,running,prefill}){
           <div className="form-group"><label className="form-label">Рабочий email</label><input className="form-input" type="email" placeholder="ivanov@work.com" value={regForm.workEmail} onChange={fr('workEmail')} /></div>
         </div>
         <div className="btn-row">
-          <button className="btn btn-secondary" disabled={!!running} onClick={regenerateRegForm}>↺ Перегенирировать</button>
-          <button className="btn btn-primary" disabled={!!running} onClick={()=>runScenario('user.register_authorized', regForm)}>
-            {running==='user.register_authorized'?<><div className="spinner"/>&nbsp;Выполняется...</>:'▶ Зарегистрировать пользователя'}
+          <button className="btn btn-secondary" disabled={!!running} onClick={regenerateRegForm}>↺ Перегенерировать (без сброса орг.)</button>
+          <button className="btn btn-primary" disabled={!!running} onClick={()=>runScenario('user.register_api', regForm)}>
+            {running==='user.register_api'?<><div className="spinner"/>&nbsp;Выполняется...</>:'▶ Зарегистрировать пользователя'}
           </button>
         </div>
       </div>
@@ -1408,7 +1427,7 @@ function OrgsPage({runScenario,running,prefill}){
   const regenerate=()=>{const d=generateOrg(form.type);setForm(f=>({...f,name:d.fullName||'',shortName:d.shortName||'',inn:d.orgInn||'',kpp:d.kpp||'',ogrn:d.ogrn||'',address:d.address||'',registrationDate:d.registrationDate||'',type:d.type||f.type,uuid:''}));};
   const updateType=(nextType)=>{const nextSupportsKpp=orgTypeSupportsKpp(nextType);const nextSupportsOgrn=orgTypeSupportsOgrn(nextType);setForm(f=>({...f,type:nextType,inn:f.inn,kpp:nextSupportsKpp?f.kpp:'',ogrn:nextSupportsOgrn?f.ogrn:'',address:f.address,registrationDate:f.registrationDate,uuid:''}));};
   useEffect(()=>{if(prefill?.target==='org_create'&&prefill.data){const d=prefill.data;setForm(f=>({...f,name:d.fullName||f.name,shortName:d.shortName||f.shortName,inn:d.orgInn||f.inn,kpp:d.kpp||'',ogrn:d.ogrn||'',address:d.address||f.address,registrationDate:d.registrationDate||f.registrationDate,type:d.type||f.type,uuid:''}));}},[prefill]);
-  const submit=async()=>{setForm(f=>({...f,uuid:''}));const done=await runScenario('org.create',{...form,name:form.name,shortName:form.shortName,inn:form.inn,kpp:supportsKpp?form.kpp:undefined,ogrn:supportsOgrn?form.ogrn:undefined});const uuid=done?.result?.uuid||'';if(uuid){setForm(f=>({...f,uuid}));}};
+  const submit=async()=>{setForm(f=>({...f,uuid:''}));const done=await runScenario('org.create',{...form,name:form.name,shortName:form.shortName,inn:form.inn,kpp:supportsKpp?form.kpp:undefined,ogrn:supportsOgrn?form.ogrn:undefined});const uuid=done?.result?.uuid||'';if(uuid){setForm(f=>({...f,uuid}));lsSet(LS_REG_ORG,{orgUuid:uuid});}};
   return (
     <div className="panel">
       <div className="panel-header"><div className="panel-title">Организации</div><div className="panel-sub">Управление организациями в XIDBOX</div></div>
@@ -2004,7 +2023,7 @@ function App(){
 
   useEffect(()=>{
     if(activeEnv.baseUrl){
-      apiPost('/api/config',{baseUrl:activeEnv.baseUrl,login:activeEnv.login,password:activeEnv.password,organizationApiUrl:activeEnv.organizationApiUrl||''}).catch(()=>{});
+      apiPost('/api/config',{baseUrl:activeEnv.baseUrl,login:activeEnv.login,password:activeEnv.password,organizationApiUrl:activeEnv.organizationApiUrl||'',apiBaseUrl:activeEnv.apiBaseUrl||'',profileUuid:activeEnv.profileUuid||'',authToken:activeEnv.authToken||''}).catch(()=>{});
     }
   },[activeEnvId,envs]);
 

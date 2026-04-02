@@ -13,7 +13,7 @@
  *   params.login         — Логин
  *   params.personalEmail — Личный email
  *   params.workEmail     — Рабочий email
- *   params.orgName       — Название организации (для выбора в списке), по умолчанию первая
+ *   params.orgUuid       — UUID организации из БД (для выбора в списке), по умолчанию первая
  */
 const { createSession, screenshotOnError, closeSession } = require('./base');
 
@@ -29,7 +29,7 @@ module.exports = async function userRegisterAuthorized({ config, params, log, ru
     login         = '',
     personalEmail = '',
     workEmail     = '',
-    orgName       = '',   // если пусто — кликаем первый вариант в списке
+    orgUuid       = '',   // если пусто — кликаем первый вариант в списке
   } = params;
 
   const { browser, page } = await createSession({ config, log, runId });
@@ -37,8 +37,8 @@ module.exports = async function userRegisterAuthorized({ config, params, log, ru
   try {
     // ── Выбор организации после логина ──────────────────────────────────
     log('info', 'Выбираем организацию...');
-    if (orgName) {
-      await page.getByText(orgName).click();
+    if (orgUuid) {
+      await page.locator(`[data-id="${orgUuid}"], [data-uuid="${orgUuid}"]`).first().click();
     } else {
       // кликнуть первый элемент списка организаций
       await page.locator('[data-test-id="org-item"], .org-item').first().click();

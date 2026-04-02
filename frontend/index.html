@@ -682,6 +682,7 @@ const REGIONS=["01","02","03","04","05","06","07","08","09","10","11","12","13",
 function inn10R(reg){const d=[+reg[0],+reg[1],r(0,9),r(0,9)];for(let i=0;i<5;i++)d.push(r(0,9));const w=[2,4,10,3,5,9,4,6,8];const c=(d.reduce((s,x,i)=>s+x*w[i],0)%11)%10;d.push(c);return d.join("");}
 function kppR(reg){return reg+p(r(0,99),2)+p(r(1,99),2)+p(r(1,999),3);}
 function ogrn13(yr,reg){let b="1"+p(yr%100,2)+reg+p(r(0,9999999),7);return b+(BigInt(b)%11n%10n).toString();}
+function ogrnip15(yr,reg){let b="3"+p(yr%100,2)+reg+p(r(0,999999999),9);return b+(BigInt(b)%13n%10n).toString();}
 function regDateFromOgrn(ogrn){const yy=parseInt(String(ogrn).slice(1,3),10);const year=(yy<=(new Date().getFullYear()%100)?2000+yy:1900+yy);const d=new Date(year,r(0,11),r(1,28));return dateIso(d);}
 function makeShortName(full){const m=String(full).match(/^(ООО)\s+"(.+)"$/i);if(!m)return full;const name=m[2].toLowerCase().replace(/(^|\s|-)([а-яa-zё])/g,(a,sep,ch)=>sep+ch.toUpperCase());return `${m[1].toUpperCase()} "${name}"`;}
 function randomAddr(){const cities=["Ижевск","Москва","Казань","Екатеринбург","Самара","Пермь","Уфа","Тверь","Тула","Омск","Воронеж","Краснодар","Ростов-на-Дону","Новосибирск","Санкт-Петербург"];const streets=["Коммунаров","Ленина","Советская","Мира","Пушкина","Гагарина","Кирова","Парковая","Центральная","Молодёжная","Октябрьская","Набережная","Зелёная"];return `г ${g(cities)}, ул ${g(streets)}, д. ${r(1,300)}, оф. ${r(1,500)}`;}
@@ -713,20 +714,82 @@ function generatePerson(){
   return {lastName:last,firstName:first,middleName:middle,email,login:email.split("@")[0],birthday:dateIso(birth),phone:`+7${r(9000000000,9999999999)}`,snils,inn,doc_series,doc_number,doc_seriesNumber:`${doc_series} ${doc_number}`,doc_type:"21",doc_nationality:"643",doc_birthDate:dateFormat(birth),doc_issueDate:dateFormat(issue),doc_issuerCode:`${p(r(100,999),3)}-${p(r(100,999),3)}`,doc_issuer:g(iss),block_future_endDate:futureDateIso(r(1,90)),block_reason:g(blockReasons),block_comment:g(blockComments),unblock_startDate:pastDateIso(r(1,365))};
 }
 
+function orgTypeUsesInn12(type){
+  return type==="individual_entrepreneur"||type==="farming"||type==="self_employed";
+}
+function orgTypeSupportsKpp(type){
+  return type==="juristic"||type==="separate_juristic";
+}
+function orgTypeSupportsOgrn(type){
+  return type==="juristic"||type==="individual_entrepreneur"||type==="farming";
+}
+function getActiveOrgNamingConfig(){
+  try{
+    const envs = normalizeEnvList(lsGet(LS_ENVS, DEFAULT_ENVS));
+    const activeId = localStorage.getItem(LS_ENV_ID) || 'dev';
+    const active = normalizeEnvConfig(envs.find(e=>e.id===activeId) || envs[0] || createDefaultEnv('dev','dev'));
+    const brands = String(active.orgNameBrands || '').split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+    return {
+      templates: normalizeOrgNameTemplates(active.orgNameTemplates),
+      brands: brands.length ? brands : DEFAULT_ORG_NAME_BRANDS,
+    };
+  }catch{
+    return {
+      templates: {...DEFAULT_ORG_NAME_TEMPLATES},
+      brands: [...DEFAULT_ORG_NAME_BRANDS],
+    };
+  }
+}
+
+function renderOrgNameTemplate(template, ctx){
+  const src = String(template || '{brand}');
+  return src
+    .replaceAll('{brand}', ctx.brand || '')
+    .replaceAll('{lastName}', ctx.lastName || '')
+    .replaceAll('{firstName}', ctx.firstName || '')
+    .replaceAll('{middleName}', ctx.middleName || '');
+}
+
+function buildOrgName(type){
+  const cfg = getActiveOrgNamingConfig();
+  const person = generatePerson();
+  const brand = g(cfg.brands);
+  const tpl = cfg.templates[type] || cfg.templates.not_defined || '{brand}';
+  const raw = renderOrgNameTemplate(tpl, {
+    brand,
+    lastName: person.lastName,
+    firstName: person.firstName,
+    middleName: person.middleName,
+  });
+  const fullName = String(raw || '').replace(/\s+/g, ' ').trim() || ('ООО "' + brand + '"');
+  return { fullName, shortName: makeShortName(fullName) };
+}
+
 function generateOrg(type){
-  const orgs=Array.from({length:10},(_,i)=>`ООО "ОРГАНИЗАЦИЯ ${i+1}"`);
-  const positions=Array.from({length:10},(_,i)=>`Должность ${i+1}`);
-  const departments=Array.from({length:10},(_,i)=>`Отдел ${i+1}`);
-  const full=g(orgs);
+  const positions=Array.from({length:10},(_,i)=>`Position ${i+1}`);
+  const departments=Array.from({length:10},(_,i)=>`Department ${i+1}`);
+  const names=buildOrgName(type);
   const region=g(REGIONS);
   const curYear=new Date().getFullYear();
   const year=r(curYear-20,curYear);
-  let inn10,kpp,ogrn=null,regDate;
-  do{inn10=inn10R(region);}while(!validInn10(inn10));
-  do{kpp=kppR(region);}while(!validKpp(kpp));
-  if(type==="juristic"){let og;do{og=ogrn13(year,region);}while(!validOgrn(og));ogrn=og;regDate=regDateFromOgrn(ogrn);}
-  else{const d=new Date();d.setFullYear(d.getFullYear()-r(1,15));d.setMonth(r(0,11));d.setDate(r(1,28));regDate=dateIso(d);}
-  return {fullName:full,shortName:makeShortName(full),type,orgInn:inn10,kpp,address:randomAddr(),registrationDate:regDate,positionName:g(positions),departmentName:g(departments),...(ogrn?{ogrn}:{})};
+  const usesInn12=orgTypeUsesInn12(type);
+  const supportsKpp=orgTypeSupportsKpp(type);
+  const supportsOgrn=orgTypeSupportsOgrn(type);
+  let orgInn="",kpp="",ogrn=null,regDate;
+  if(usesInn12){
+    do{orgInn=genInn12();}while(!validInn12(orgInn));
+  }else{
+    do{orgInn=inn10R(region);}while(!validInn10(orgInn));
+  }
+  if(supportsKpp){
+    do{kpp=kppR(region);}while(!validKpp(kpp));
+  }
+  if(supportsOgrn){
+    if(type==="juristic"){let og;do{og=ogrn13(year,region);}while(!validOgrn(og));ogrn=og;regDate=regDateFromOgrn(ogrn);}
+    else{ogrn=ogrnip15(year,region);}
+  }
+  if(!regDate){const d=new Date();d.setFullYear(d.getFullYear()-r(1,15));d.setMonth(r(0,11));d.setDate(r(1,28));regDate=dateIso(d);}
+  return {fullName:names.fullName,shortName:names.shortName,type,orgInn,kpp,address:randomAddr(),registrationDate:regDate,positionName:g(positions),departmentName:g(departments),...(ogrn?{ogrn}:{})};
 }
 
 function generateAllBundles(){
@@ -739,22 +802,145 @@ const LS_ENVS    = "xidbox_qa_envs";
 const LS_ENV_ID  = "xidbox_qa_active_env";
 const LS_LOG_HEIGHT = "xidbox_qa_log_height";
 
-const DEFAULT_ENVS = [
-  {id:"dev",  label:"dev",  baseUrl:"",login:"",password:"",organizationApiUrl:""},
-  {id:"stage",label:"stage",baseUrl:"",login:"",password:"",organizationApiUrl:""},
-  {id:"prod", label:"prod", baseUrl:"",login:"",password:"",organizationApiUrl:""},
+const DEFAULT_ORG_NAME_BRANDS = [
+  "\u0412\u0435\u043a\u0442\u043e\u0440 \u0422\u0435\u0445\u043d\u043e\u043b\u043e\u0433\u0438\u0438",
+  "\u042e\u0436\u043d\u044b\u0435 \u0421\u0438\u0441\u0442\u0435\u043c\u044b",
+  "\u0421\u0435\u0432\u0435\u0440\u043d\u044b\u0435 \u0420\u0435\u0448\u0435\u043d\u0438\u044f",
+  "\u0426\u0438\u0444\u0440\u043e\u0432\u043e\u0439 \u041f\u043e\u0442\u043e\u043a",
+  "\u0413\u043e\u0440\u043e\u0434\u0441\u043a\u0438\u0435 \u0421\u0435\u0440\u0432\u0438\u0441\u044b",
+  "\u0411\u0438\u0437\u043d\u0435\u0441 \u042d\u043a\u0441\u043f\u0435\u0440\u0442",
+  "\u041f\u0440\u043e\u043c\u044b\u0448\u043b\u0435\u043d\u043d\u0430\u044f \u0422\u043e\u0440\u0433\u043e\u0432\u043b\u044f",
+  "\u0410\u0433\u0440\u043e \u0420\u0435\u0441\u0443\u0440\u0441\u044b",
+  "\u0422\u0435\u0445\u043d\u043e \u041b\u0430\u0431\u043e\u0440\u0430\u0442\u043e\u0440\u0438\u044f",
+  "\u0418\u043d\u0444\u043e \u0418\u043d\u0442\u0435\u0433\u0440\u0430\u0446\u0438\u044f",
+  "\u0421\u043e\u0444\u0442 \u041f\u043b\u0430\u0442\u0444\u043e\u0440\u043c\u0430",
+  "\u041c\u0435\u0434\u0438\u0430 \u041f\u0440\u043e\u0434\u0430\u043a\u0448\u043d",
+  "\u042d\u043a\u043e \u041f\u043e\u0441\u0442\u0430\u0432\u043a\u0430",
+  "\u0424\u0438\u043d\u0430\u043d\u0441 \u041f\u0430\u0440\u0442\u043d\u0435\u0440\u044b",
+  "\u041b\u043e\u0433\u0438\u0441\u0442\u0438\u043a \u0414\u043e\u0441\u0442\u0430\u0432\u043a\u0430",
+  "\u0422\u0440\u0430\u043d\u0441\u043f\u043e\u0440\u0442 \u041e\u043f\u0435\u0440\u0430\u0442\u043e\u0440",
+  "\u0421\u043a\u043b\u0430\u0434 \u041b\u043e\u0433\u0438\u0441\u0442\u0438\u043a\u0430",
+  "\u0420\u0438\u0442\u0435\u0439\u043b \u041f\u0440\u043e\u0434\u0430\u0436\u0438",
+  "\u041f\u0440\u043e\u0435\u043a\u0442 \u0414\u0435\u0432\u0435\u043b\u043e\u043f\u043c\u0435\u043d\u0442",
+  "\u0421\u0442\u0440\u043e\u0439 \u0418\u043d\u0432\u0435\u0441\u0442",
+  "\u0410\u0439\u0442\u0438 \u041f\u043e\u0434\u0434\u0435\u0440\u0436\u043a\u0430",
+  "\u0414\u0430\u043d\u043d\u044b\u0435 \u0410\u043d\u0430\u043b\u0438\u0442\u0438\u043a\u0430",
+  "\u041a\u0438\u0431\u0435\u0440 \u0417\u0430\u0449\u0438\u0442\u0430",
+  "\u041e\u0431\u043b\u0430\u0447\u043d\u044b\u0435 \u0420\u0435\u0448\u0435\u043d\u0438\u044f",
+  "\u041f\u043b\u0430\u0442\u0435\u0436\u043d\u044b\u0435 \u0421\u0435\u0440\u0432\u0438\u0441\u044b",
+  "\u041a\u043e\u043d\u0442\u0435\u043d\u0442 \u041f\u043b\u0430\u0442\u0444\u043e\u0440\u043c\u0430",
+  "\u0423\u043f\u0440\u0430\u0432\u043b\u0435\u043d\u0438\u0435 \u041f\u0440\u043e\u0446\u0435\u0441\u0441\u044b",
+  "\u0418\u043d\u043d\u043e\u0432\u0430\u0446\u0438\u0438 \u0426\u0435\u043d\u0442\u0440",
+  "\u0420\u0430\u0437\u0440\u0430\u0431\u043e\u0442\u043a\u0430 \u0421\u0438\u0441\u0442\u0435\u043c",
+  "\u0411\u0435\u0437\u043e\u043f\u0430\u0441\u043d\u043e\u0441\u0442\u044c \u0414\u0430\u043d\u043d\u044b\u0435",
+  "\u0421\u0435\u0442\u0435\u0432\u044b\u0435 \u0422\u0435\u0445\u043d\u043e\u043b\u043e\u0433\u0438\u0438",
+  "\u041c\u043e\u0431\u0438\u043b\u044c\u043d\u044b\u0435 \u0420\u0435\u0448\u0435\u043d\u0438\u044f",
+  "\u0410\u0432\u0442\u043e\u043c\u0430\u0442\u0438\u0437\u0430\u0446\u0438\u044f \u0411\u0438\u0437\u043d\u0435\u0441\u0430",
+  "\u0426\u0438\u0444\u0440\u043e\u0432\u0430\u044f \u0422\u0440\u0430\u043d\u0441\u0444\u043e\u0440\u043c\u0430\u0446\u0438\u044f",
+  "\u0421\u0435\u0440\u0432\u0438\u0441 \u041f\u043e\u0434\u0434\u0435\u0440\u0436\u043a\u0430",
+  "\u041a\u043b\u0438\u0435\u043d\u0442 \u0420\u0435\u0448\u0435\u043d\u0438\u044f",
+  "\u041f\u0430\u0440\u0442\u043d\u0435\u0440 \u0421\u0438\u0441\u0442\u0435\u043c\u044b",
+  "\u0418\u043d\u0442\u0435\u0433\u0440\u0430\u0446\u0438\u044f \u0414\u0430\u043d\u043d\u044b\u0445",
+  "\u041e\u043f\u0442\u0438\u043c\u0438\u0437\u0430\u0446\u0438\u044f \u041f\u0440\u043e\u0446\u0435\u0441\u0441\u043e\u0432",
+  "\u041a\u043e\u043d\u0442\u0440\u043e\u043b\u044c \u041a\u0430\u0447\u0435\u0441\u0442\u0432\u0430",
+  "\u041c\u043e\u043d\u0438\u0442\u043e\u0440\u0438\u043d\u0433 \u0421\u0435\u0440\u0432\u0438\u0441\u043e\u0432",
+  "\u0423\u043f\u0440\u0430\u0432\u043b\u0435\u043d\u0438\u0435 \u0414\u043e\u0441\u0442\u0443\u043f\u043e\u043c",
+  "\u0418\u0434\u0435\u043d\u0442\u0438\u0444\u0438\u043a\u0430\u0446\u0438\u044f \u041f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u0442\u0435\u043b\u0435\u0439",
+  "\u0410\u043d\u0430\u043b\u0438\u0437 \u0420\u0438\u0441\u043a\u043e\u0432",
+  "\u0425\u0440\u0430\u043d\u0438\u043b\u0438\u0449\u0435 \u0414\u0430\u043d\u043d\u044b\u0445",
+  "\u041e\u0431\u0440\u0430\u0431\u043e\u0442\u043a\u0430 \u0421\u043e\u0431\u044b\u0442\u0438\u0439",
+  "\u041f\u0435\u0440\u0435\u0434\u0430\u0447\u0430 \u0414\u0430\u043d\u043d\u044b\u0445",
+  "\u0417\u0430\u0449\u0438\u0442\u0430 \u0418\u043d\u0444\u043e\u0440\u043c\u0430\u0446\u0438\u0438",
+  "\u0420\u0435\u0435\u0441\u0442\u0440 \u041f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u0442\u0435\u043b\u0435\u0439",
+  "\u0423\u0447\u0435\u0442 \u0417\u0430\u043f\u0438\u0441\u0435\u0439",
 ];
+
+const DEFAULT_ORG_NAME_TEMPLATES = {
+  juristic: '\u041e\u041e\u041e \"{brand}\"',
+  separate_juristic: '\u041e\u041f \"{brand}\"',
+  individual_entrepreneur: '\u0418\u041f {lastName} {firstName} {middleName}',
+  farming: '\u041a\u0424\u0425 \"{brand}\"',
+  self_employed: '{lastName} {firstName} {middleName}',
+  not_defined: '{brand}',
+};
+
+function createDefaultEnv(id,label){
+  return {
+    id,
+    label,
+    baseUrl:"",
+    login:"",
+    password:"",
+    organizationApiUrl:"",
+    orgNameBrands:DEFAULT_ORG_NAME_BRANDS.join('\n'),
+    orgNameTemplates:{...DEFAULT_ORG_NAME_TEMPLATES},
+  };
+}
+
+function normalizeOrgNameTemplates(templates){
+  return {...DEFAULT_ORG_NAME_TEMPLATES,...(templates||{})};
+}
+
+function looksCorruptedText(value){
+  const text=String(value||'').trim();
+  if(!text)return true;
+  if(text.includes('�'))return true;
+  const clean=text.replace(/\{(brand|lastName|firstName|middleName)\}/g,'').trim();
+  const questionCount=(text.match(/\?/g)||[]).length;
+  const hasLetters=/[A-Za-zА-Яа-яЁё]/.test(clean);
+  return questionCount>=3&&!hasLetters;
+}
+
+function sanitizeOrgNameBrands(brands){
+  if(typeof brands!=='string')return DEFAULT_ORG_NAME_BRANDS.join('\n');
+  const lines=brands.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+  if(!lines.length)return DEFAULT_ORG_NAME_BRANDS.join('\n');
+  const goodLines=lines.filter(line=>!looksCorruptedText(line));
+  return (goodLines.length?goodLines:DEFAULT_ORG_NAME_BRANDS).join('\n');
+}
+
+function sanitizeOrgNameTemplates(templates){
+  const merged=normalizeOrgNameTemplates(templates);
+  const keys=['juristic','separate_juristic','individual_entrepreneur','farming','self_employed','not_defined'];
+  const out={...DEFAULT_ORG_NAME_TEMPLATES};
+  for(const key of keys){
+    const raw=typeof merged[key]==='string'?merged[key].trim():'';
+    out[key]=raw&&!looksCorruptedText(raw)?raw:DEFAULT_ORG_NAME_TEMPLATES[key];
+  }
+  return out;
+}
+
+function normalizeEnvConfig(env){
+  const base=createDefaultEnv(env?.id||'env',env?.label||env?.id||'env');
+  return {
+    ...base,
+    ...(env||{}),
+    orgNameBrands:sanitizeOrgNameBrands(env?.orgNameBrands),
+    orgNameTemplates:sanitizeOrgNameTemplates(env?.orgNameTemplates),
+  };
+}
+
+function normalizeEnvList(envs){
+  const list=Array.isArray(envs)&&envs.length?envs:[];
+  return (list.length?list:[createDefaultEnv('dev','dev'),createDefaultEnv('stage','stage'),createDefaultEnv('prod','prod')]).map(normalizeEnvConfig);
+}
+
+const DEFAULT_ENVS = normalizeEnvList([
+  {id:"dev",label:"dev"},
+  {id:"stage",label:"stage"},
+  {id:"prod",label:"prod"},
+]);
 
 function lsGet(k,def){try{const v=localStorage.getItem(k);return v?JSON.parse(v):def;}catch{return def;}}
 function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch{}}
 
 const ORG_TYPE_OPTIONS = [
-  { value: 'juristic', label: 'ЮЛ' },
-  { value: 'individual_entrepreneur', label: 'ИП' },
-  { value: 'farming', label: 'КФХ' },
-  { value: 'separate_juristic', label: 'ОП' },
-  { value: 'self_employed', label: 'ФЛ' },
-  { value: 'not_defined', label: 'НО' },
+  { value: 'juristic', label: '\u042e\u041b' },
+  { value: 'individual_entrepreneur', label: '\u0418\u041f' },
+  { value: 'farming', label: '\u041a\u0424\u0425' },
+  { value: 'separate_juristic', label: '\u041e\u041f' },
+  { value: 'self_employed', label: '\u0424\u041b' },
+  { value: 'not_defined', label: '\u041d\u041e' },
 ];
 
 // ─── RBAC DATA ────────────────────────────────────────────────────────────
@@ -819,18 +1005,20 @@ function CopyBtn({text}){
 // ─── SETTINGS PAGE ────────────────────────────────────────────────────────
 function SettingsPage({envs,setEnvs,activeEnvId,setActiveEnvId,hiddenTabs=[],toggleHideTab=()=>{},allTabs=[]}){
   const [editId,setEditId]=useState(activeEnvId);
-  const env=envs.find(e=>e.id===editId)||envs[0];
+  const env=normalizeEnvConfig(envs.find(e=>e.id===editId)||envs[0]);
   const [form,setForm]=useState({...env});
   const [newLabel,setNewLabel]=useState('');
   const [saved,setSaved]=useState(false);
 
-  useEffect(()=>{const e=envs.find(e=>e.id===editId)||envs[0];setForm({...e});},[editId,envs]);
+  useEffect(()=>{const e=normalizeEnvConfig(envs.find(e=>e.id===editId)||envs[0]);setForm({...e});},[editId,envs]);
 
   const update=(k)=>(ev)=>setForm(f=>({...f,[k]:ev.target.value}));
-  const save=()=>{const updated=envs.map(e=>e.id===editId?{...e,...form}:e);setEnvs(updated);lsSet(LS_ENVS,updated);setSaved(true);setTimeout(()=>setSaved(false),1800);};
-  const activate=()=>{setActiveEnvId(editId);lsSet(LS_ENV_ID,editId);};
-  const addEnv=()=>{if(!newLabel.trim())return;const id=`env_${Date.now()}`;const ne={id,label:newLabel.trim(),baseUrl:'',login:'',password:'',organizationApiUrl:''};const updated=[...envs,ne];setEnvs(updated);lsSet(LS_ENVS,updated);setNewLabel('');setEditId(id);};
-  const removeEnv=(id)=>{if(envs.length<=1)return;const updated=envs.filter(e=>e.id!==id);setEnvs(updated);lsSet(LS_ENVS,updated);if(editId===id)setEditId(updated[0].id);if(activeEnvId===id){setActiveEnvId(updated[0].id);lsSet(LS_ENV_ID,updated[0].id);}};
+  const updateTemplate=(type)=>(ev)=>setForm(f=>({...f,orgNameTemplates:{...normalizeOrgNameTemplates(f.orgNameTemplates),[type]:ev.target.value}}));
+  const persistProjectSettings=async(nextEnvs,nextActiveEnvId)=>{const r=await apiPost('/api/settings',{envs:nextEnvs,activeEnvId:nextActiveEnvId});if(!r||r.ok!==true)throw new Error('save_failed');};
+  const save=async()=>{const normalizedForm=normalizeEnvConfig(form);const updated=normalizeEnvList(envs.map(e=>e.id===editId?{...e,...normalizedForm}:e));setEnvs(updated);lsSet(LS_ENVS,updated);try{await persistProjectSettings(updated,activeEnvId);setSaved(true);setTimeout(()=>setSaved(false),1800);}catch{setSaved(false);}};
+  const activate=async()=>{setActiveEnvId(editId);lsSet(LS_ENV_ID,editId);try{await persistProjectSettings(envs,editId);}catch{}};
+  const addEnv=async()=>{if(!newLabel.trim())return;const id=`env_${Date.now()}`;const ne=createDefaultEnv(id,newLabel.trim());const updated=normalizeEnvList([...envs,ne]);setEnvs(updated);lsSet(LS_ENVS,updated);setNewLabel('');setEditId(id);try{await persistProjectSettings(updated,activeEnvId);}catch{}};
+  const removeEnv=async(id)=>{if(envs.length<=1)return;const updated=envs.filter(e=>e.id!==id);const nextActiveId=activeEnvId===id?updated[0].id:activeEnvId;setEnvs(updated);lsSet(LS_ENVS,updated);if(editId===id)setEditId(updated[0].id);if(activeEnvId===id){setActiveEnvId(nextActiveId);lsSet(LS_ENV_ID,nextActiveId);}try{await persistProjectSettings(updated,nextActiveId);}catch{}};
 
   const isActive=editId===activeEnvId;
   const envLabel=env?.label||'';
@@ -879,6 +1067,22 @@ function SettingsPage({envs,setEnvs,activeEnvId,setActiveEnvId,hiddenTabs=[],tog
           <div className="form-group full">
             <label className="form-label">Organization API URL</label>
             <input className="form-input" placeholder="http://10.22.255.72:8095" value={form.organizationApiUrl||''} onChange={update('organizationApiUrl')} />
+          </div>
+          <div className="form-group full">
+            <label className="form-label">Org Name Brands (one per line)</label>
+            <textarea className="form-input textarea" rows={4} placeholder="Вектор Технологии" value={form.orgNameBrands||''} onChange={update('orgNameBrands')} />
+          </div>
+          <div className="form-group full">
+            <label className="form-label">Org Name Templates by Type</label>
+            <div style={{display:'grid',gap:8}}>
+              {ORG_TYPE_OPTIONS.map(opt=>(
+                <div key={opt.value} style={{display:'grid',gridTemplateColumns:'minmax(160px,260px) 1fr',gap:8,alignItems:'center'}}>
+                  <label className="form-label" style={{marginBottom:0}}>{opt.label} <span style={{color:'var(--text3)',fontFamily:'var(--mono)',fontSize:11}}>({opt.value})</span></label>
+                  <input className="form-input" value={(form.orgNameTemplates&&form.orgNameTemplates[opt.value])||''} onChange={updateTemplate(opt.value)} />
+                </div>
+              ))}
+              <div style={{fontSize:11,color:'var(--text3)'}}>Tokens: {'{brand}'} {'{lastName}'} {'{firstName}'} {'{middleName}'}</div>
+            </div>
           </div>
           <div className="form-group">
             <label className="form-label">Логин <span>*</span></label>
@@ -1089,11 +1293,10 @@ function DataGenPage({ onUseInForm, bundles: externalBundles, setBundles: setExt
 
 // ─── USERS PAGE ───────────────────────────────────────────────────────────
 function UsersPage({runScenario,running,prefill}){
-  const [createForm,setCreateForm]=useState({login:'',email:'',lastName:'',firstName:'',middleName:'',password:'',organizationName:''});
   const [regForm,setRegForm]=useState({orgInn:'',orgName:'',lastName:'',firstName:'',middleName:'',birthday:'',inn:'',snils:'',login:'',personalEmail:'',workEmail:''});
   const [blockForm,setBlockForm]=useState({login:'',blockType:'temporary',reason:''});
   const [resetForm,setResetForm]=useState({login:''});
-  useEffect(()=>{if(prefill?.target==='user_create'&&prefill.data){const d=prefill.data;setCreateForm(f=>({...f,login:d.login||f.login,email:d.email||f.email,lastName:d.lastName||f.lastName,firstName:d.firstName||f.firstName,middleName:d.middleName||f.middleName}));}},[prefill]);
+  const regenerateRegForm=()=>{const p=generatePerson();setRegForm(f=>({...f,lastName:p.lastName||'',firstName:p.firstName||'',middleName:p.middleName||'',birthday:p.doc_birthDate||'',inn:p.inn||'',snils:p.snils||'',login:p.login||'',personalEmail:p.email||'',workEmail:f.workEmail||''}));};
   const f=(form,setForm)=>(field)=>e=>setForm({...form,[field]:e.target.value});
   const fr=f(regForm,setRegForm);
   return (
@@ -1117,25 +1320,12 @@ function UsersPage({runScenario,running,prefill}){
           <div className="form-group"><label className="form-label">Личный email</label><input className="form-input" type="email" placeholder="ivanov@mail.com" value={regForm.personalEmail} onChange={fr('personalEmail')} /></div>
           <div className="form-group"><label className="form-label">Рабочий email</label><input className="form-input" type="email" placeholder="ivanov@work.com" value={regForm.workEmail} onChange={fr('workEmail')} /></div>
         </div>
-        <button className="btn btn-primary" disabled={!!running} onClick={()=>runScenario('user.register_authorized', regForm)}>
-          {running==='user.register_authorized'?<><div className="spinner"/>&nbsp;Выполняется...</>:'▶ Зарегистрировать пользователя'}
-        </button>
-      </div>
-
-      <div className="card">
-        <div className="card-title"><span className="card-title-icon">👤</span> Быстрое создание (API / системный администратор)</div>
-        <div className="form-grid">
-          <div className="form-group"><label className="form-label">Фамилия</label><input className="form-input" placeholder="Иванов" value={createForm.lastName} onChange={f(createForm,setCreateForm)('lastName')} /></div>
-          <div className="form-group"><label className="form-label">Имя</label><input className="form-input" placeholder="Иван" value={createForm.firstName} onChange={f(createForm,setCreateForm)('firstName')} /></div>
-          <div className="form-group"><label className="form-label">Отчество</label><input className="form-input" placeholder="Иванович" value={createForm.middleName} onChange={f(createForm,setCreateForm)('middleName')} /></div>
-          <div className="form-group"><label className="form-label">Логин <span>*</span></label><input className="form-input" placeholder="ivanov_i" value={createForm.login} onChange={f(createForm,setCreateForm)('login')} /></div>
-          <div className="form-group"><label className="form-label">Email <span>*</span></label><input className="form-input" type="email" placeholder="ivanov@example.com" value={createForm.email} onChange={f(createForm,setCreateForm)('email')} /></div>
-          <div className="form-group"><label className="form-label">Пароль</label><input className="form-input" type="password" placeholder="••••••••" value={createForm.password} onChange={f(createForm,setCreateForm)('password')} /></div>
-          <div className="form-group full"><label className="form-label">Организация</label><input className="form-input" placeholder="Начните вводить название..." value={createForm.organizationName} onChange={f(createForm,setCreateForm)('organizationName')} /></div>
+        <div className="btn-row">
+          <button className="btn btn-secondary" disabled={!!running} onClick={regenerateRegForm}>↺ Перегенирировать</button>
+          <button className="btn btn-primary" disabled={!!running} onClick={()=>runScenario('user.register_authorized', regForm)}>
+            {running==='user.register_authorized'?<><div className="spinner"/>&nbsp;Выполняется...</>:'▶ Зарегистрировать пользователя'}
+          </button>
         </div>
-        <button className="btn btn-primary" disabled={!!running} onClick={()=>runScenario('user.create',createForm)}>
-          {running==='user.create'?<><div className="spinner"/>&nbsp;Выполняется...</>:'▶ Создать пользователя'}
-        </button>
       </div>
       <div className="card">
         <div className="card-title"><span className="card-title-icon">🔒</span> Блокировка / Разблокировка УЗ</div>
@@ -1155,10 +1345,6 @@ function UsersPage({runScenario,running,prefill}){
           <div className="form-group"><label className="form-label">Логин <span>*</span></label><input className="form-input" placeholder="ivanov_i" value={resetForm.login} onChange={f(resetForm,setResetForm)('login')} /></div>
         </div>
         <button className="btn btn-warn" disabled={!!running} onClick={()=>runScenario('user.reset_password',resetForm)}>{running==='user.reset_password'?<><div className="spinner"/>&nbsp;...</>:'🔑 Сбросить пароль'}</button>
-      </div>
-      <div className="card">
-        <div className="card-title"><span className="card-title-icon">📤</span> Выгрузка списка пользователей</div>
-        <button className="btn btn-secondary" disabled={!!running} onClick={()=>runScenario('user.export',{})}>📥 Выгрузить список</button>
       </div>
     </div>
   );
@@ -1215,8 +1401,14 @@ function ProfilesPage({runScenario,running}){
 
 // ─── ORGANIZATIONS PAGE ───────────────────────────────────────────────────
 function OrgsPage({runScenario,running,prefill}){
-  const [form,setForm]=useState({name:'',shortName:'',inn:'',kpp:'',ogrn:'',type:'juristic',description:'',address:'',registrationDate:''});
-  useEffect(()=>{if(prefill?.target==='org_create'&&prefill.data){const d=prefill.data;setForm(f=>({...f,name:d.fullName||f.name,shortName:d.shortName||f.shortName,inn:d.orgInn||f.inn,kpp:d.kpp||f.kpp,ogrn:d.ogrn||f.ogrn,address:d.address||f.address,registrationDate:d.registrationDate||f.registrationDate,type:d.type||f.type}));}},[prefill]);
+  const [form,setForm]=useState({name:'',shortName:'',inn:'',kpp:'',ogrn:'',type:'juristic',uuid:'',address:'',registrationDate:''});
+  const usesInn12=orgTypeUsesInn12(form.type);
+  const supportsKpp=orgTypeSupportsKpp(form.type);
+  const supportsOgrn=orgTypeSupportsOgrn(form.type);
+  const regenerate=()=>{const d=generateOrg(form.type);setForm(f=>({...f,name:d.fullName||'',shortName:d.shortName||'',inn:d.orgInn||'',kpp:d.kpp||'',ogrn:d.ogrn||'',address:d.address||'',registrationDate:d.registrationDate||'',type:d.type||f.type,uuid:''}));};
+  const updateType=(nextType)=>{const nextSupportsKpp=orgTypeSupportsKpp(nextType);const nextSupportsOgrn=orgTypeSupportsOgrn(nextType);setForm(f=>({...f,type:nextType,inn:f.inn,kpp:nextSupportsKpp?f.kpp:'',ogrn:nextSupportsOgrn?f.ogrn:'',address:f.address,registrationDate:f.registrationDate,uuid:''}));};
+  useEffect(()=>{if(prefill?.target==='org_create'&&prefill.data){const d=prefill.data;setForm(f=>({...f,name:d.fullName||f.name,shortName:d.shortName||f.shortName,inn:d.orgInn||f.inn,kpp:d.kpp||'',ogrn:d.ogrn||'',address:d.address||f.address,registrationDate:d.registrationDate||f.registrationDate,type:d.type||f.type,uuid:''}));}},[prefill]);
+  const submit=async()=>{setForm(f=>({...f,uuid:''}));const done=await runScenario('org.create',{...form,name:form.name,shortName:form.shortName,inn:form.inn,kpp:supportsKpp?form.kpp:undefined,ogrn:supportsOgrn?form.ogrn:undefined});const uuid=done?.result?.uuid||'';if(uuid){setForm(f=>({...f,uuid}));}};
   return (
     <div className="panel">
       <div className="panel-header"><div className="panel-title">Организации</div><div className="panel-sub">Управление организациями в XIDBOX</div></div>
@@ -1225,27 +1417,25 @@ function OrgsPage({runScenario,running,prefill}){
         <div className="form-grid">
           <div className="form-group full"><label className="form-label">Полное наименование <span>*</span></label><input className="form-input" placeholder='ООО "Пример"' value={form.name} onChange={e=>setForm({...form,name:e.target.value})} /></div>
           <div className="form-group"><label className="form-label">Краткое наименование</label><input className="form-input" placeholder="Пример" value={form.shortName} onChange={e=>setForm({...form,shortName:e.target.value})} /></div>
-          <div className="form-group"><label className="form-label">Тип</label><select className="form-input" value={form.type} onChange={e=>setForm({...form,type:e.target.value})}>{ORG_TYPE_OPTIONS.map(t=><option key={t.value} value={t.value}>{`${t.label} (${t.value})`}</option>)}</select></div>
-          <div className="form-group"><label className="form-label">ИНН</label><input className="form-input" placeholder="7712345678" value={form.inn} onChange={e=>setForm({...form,inn:e.target.value})} /></div>
-          <div className="form-group"><label className="form-label">КПП</label><input className="form-input" placeholder="771201001" value={form.kpp} onChange={e=>setForm({...form,kpp:e.target.value})} /></div>
-          <div className="form-group"><label className="form-label">ОГРН</label><input className="form-input" placeholder="1027700132195" value={form.ogrn||''} onChange={e=>setForm({...form,ogrn:e.target.value})} /></div>
+          <div className="form-group"><label className="form-label">Тип</label><select className="form-input" value={form.type} onChange={e=>updateType(e.target.value)}>{ORG_TYPE_OPTIONS.map(t=><option key={t.value} value={t.value}>{`${t.label} (${t.value})`}</option>)}</select></div>
+          <div className="form-group"><label className="form-label">ИНН <span style={{color:'var(--text3)',fontWeight:400,fontSize:10}}>{usesInn12?'(12 цифр)':'(10 цифр)'}</span></label><input className="form-input" placeholder={usesInn12?'123456789012':'7712345678'} value={form.inn} onChange={e=>setForm({...form,inn:e.target.value})} /></div>
+          {supportsKpp&&<div className="form-group"><label className="form-label">КПП</label><input className="form-input" placeholder="771201001" value={form.kpp} onChange={e=>setForm({...form,kpp:e.target.value})} /></div>}
+          {supportsOgrn&&<div className="form-group"><label className="form-label">{form.type==='juristic'?'ОГРН':'ОГРНИП'} <span style={{color:'var(--text3)',fontWeight:400,fontSize:10}}>{form.type==='juristic'?'(13 цифр)':'(15 цифр)'}</span></label><input className="form-input" placeholder={form.type==='juristic'?'1027700132195':'315774600391260'} value={form.ogrn||''} onChange={e=>setForm({...form,ogrn:e.target.value})} /></div>}
           <div className="form-group"><label className="form-label">Дата регистрации</label><input className="form-input" type="date" value={form.registrationDate||''} onChange={e=>setForm({...form,registrationDate:e.target.value})} /></div>
           <div className="form-group full"><label className="form-label">Адрес</label><input className="form-input" placeholder="г Москва, ул Ленина, д. 1" value={form.address||''} onChange={e=>setForm({...form,address:e.target.value})} /></div>
-          <div className="form-group full"><label className="form-label">Описание</label><input className="form-input" placeholder="Описание организации..." value={form.description||''} onChange={e=>setForm({...form,description:e.target.value})} /></div>
+          <div className="form-group full"><label className="form-label">UUID (из БД после создания)</label><input className="form-input" placeholder="uuid появится после создания" value={form.uuid||''} readOnly /></div>
         </div>
-        <button className="btn btn-primary" disabled={!!running} onClick={()=>runScenario('org.create',form)}>
-          {running==='org.create'?<><div className="spinner"/>&nbsp;Выполняется...</>:'▶ Создать организацию'}
-        </button>
-      </div>
-      <div className="card">
-        <div className="card-title"><span className="card-title-icon">📤</span> Выгрузка списка организаций</div>
-        <button className="btn btn-secondary" disabled={!!running} onClick={()=>runScenario('org.export',{})}>📥 Выгрузить организации</button>
+        <div className="btn-row">
+          <button className="btn btn-secondary" disabled={!!running} onClick={regenerate}>↺ Перегенерировать</button>
+          <button className="btn btn-primary" disabled={!!running} onClick={submit}>
+            {running==='org.create'?<><div className="spinner"/>&nbsp;Выполняется...</>:'▶ Создать организацию'}
+          </button>
+        </div>
       </div>
     </div>
   );
 }
 
-// ─── TICKETS PAGE ─────────────────────────────────────────────────────────
 function TicketsPage({runScenario,running}){
   const [createForm,setCreateForm]=useState({type:'session_end',targetLogin:'',comment:''});
   const [approveForm,setApproveForm]=useState({ticketId:'',action:'approve',comment:''});
@@ -1771,7 +1961,7 @@ function App(){
   const [running,setRunning]=useState(null);
   const [activeRunId,setActiveRunId]=useState(null);
   const [wsConnected,setWsConnected]=useState(false);
-  const [envs,setEnvs]=useState(()=>lsGet(LS_ENVS,DEFAULT_ENVS));
+  const [envs,setEnvs]=useState(()=>normalizeEnvList(lsGet(LS_ENVS,DEFAULT_ENVS)));
   const [activeEnvId,setActiveEnvId]=useState(()=>localStorage.getItem(LS_ENV_ID)||'dev');
   const [prefill,setPrefill]=useState(null);
   const [history,setHistory]=useState(()=>lsGet(LS_HISTORY,[]));
@@ -1784,6 +1974,33 @@ function App(){
   const doneWaitersRef=useRef(new Map());
 
   const activeEnv=envs.find(e=>e.id===activeEnvId)||envs[0]||{};
+
+  useEffect(()=>{
+    let cancelled=false;
+    apiGet('/api/settings').then((data)=>{
+      if(cancelled||!data||typeof data!=='object')return;
+      if(Array.isArray(data.envs)&&data.envs.length){
+        const loadedEnvs=normalizeEnvList(data.envs);
+        const candidate=typeof data.activeEnvId==='string'&&data.activeEnvId?data.activeEnvId:(loadedEnvs[0]?.id||'dev');
+        const resolvedActiveId=loadedEnvs.some(e=>e.id===candidate)?candidate:loadedEnvs[0].id;
+        setEnvs(loadedEnvs);
+        lsSet(LS_ENVS,loadedEnvs);
+        setActiveEnvId(resolvedActiveId);
+        lsSet(LS_ENV_ID,resolvedActiveId);
+        const migrated = JSON.stringify(loadedEnvs)!==JSON.stringify(data.envs) || resolvedActiveId!==data.activeEnvId;
+        if(migrated){apiPost('/api/settings',{envs:loadedEnvs,activeEnvId:resolvedActiveId}).catch(()=>{});}
+        return;
+      }
+      if(typeof data.activeEnvId==='string'&&data.activeEnvId){
+        setActiveEnvId(prev=>{
+          const resolved=envs.some(e=>e.id===data.activeEnvId)?data.activeEnvId:prev;
+          lsSet(LS_ENV_ID,resolved);
+          return resolved;
+        });
+      }
+    }).catch(()=>{});
+    return ()=>{cancelled=true;};
+  },[]);
 
   useEffect(()=>{
     if(activeEnv.baseUrl){
@@ -1870,7 +2087,7 @@ function App(){
   };
 
   const runScenario=async(scenario,params)=>{
-    if(running)return;
+    if(running)return null;
     setRunning(scenario);
     addLog({level:'info',message:`─── Старт: ${scenario} [${activeEnv.label||activeEnvId}] ───`,ts:new Date().toISOString()});
     try{
@@ -1878,13 +2095,17 @@ function App(){
       if(resp?.runId){
         setActiveRunId(resp.runId);
         runMetaRef.current[resp.runId] = { scenario, params };
+        const done = await waitForRunDone(resp.runId);
+        return done;
       }
+      return null;
     }
     catch(err){
       addLog({level:'error',message:`Ошибка: ${err.message}`,ts:new Date().toISOString()});
       addHistory(scenario,params,'error');
       setRunning(null);
       setActiveRunId(null);
+      return null;
     }
   };
 
@@ -1941,7 +2162,7 @@ function App(){
     <React.Fragment>
       {/* TOPBAR */}
       <div className="topbar">
-        <div className="topbar-logo">MY QA Tools</div>
+        <div className="topbar-logo">MY QA Tools <span style={{fontSize:'11px', opacity:0.5, fontWeight:'normal', letterSpacing:'0.05em'}}>v0.00.01</span></div>
         <div className="topbar-status">
           <div className={`status-dot ${wsConnected?'connected':'error'}`} />
           <span>{wsConnected ? 'backend online' : 'backend offline'}</span>
@@ -2024,12 +2245,4 @@ ReactDOM.createRoot(document.getElementById('root')).render(<App />);
 </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
 

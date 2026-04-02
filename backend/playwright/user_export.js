@@ -14,6 +14,6 @@ module.exports = async function user_export({ config, params, log, runId }) {
     log('success', `Файл выгружен: ${suggestedFilename}`);
     return { exported: true, filename: suggestedFilename };
   } catch (err) { await screenshotOnError(page, log); throw err; }
-  finally { await closeSession(browser); }
+  finally { await closeSession(browser, runId); }
 };
 

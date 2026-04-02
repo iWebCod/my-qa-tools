@@ -17,7 +17,7 @@
  */
 const { createSession, screenshotOnError, closeSession } = require('./base');
 
-module.exports = async function userRegisterAuthorized(params, log, config) {
+module.exports = async function userRegisterAuthorized({ config, params, log, runId }) {
   const {
     orgInn        = '',
     lastName      = '',
@@ -108,7 +108,7 @@ module.exports = async function userRegisterAuthorized(params, log, config) {
     log('error', `✗ Ошибка: ${err.message}`);
     throw err;
   } finally {
-    await closeSession(browser);
+    await closeSession(browser, runId);
   }
 };
 

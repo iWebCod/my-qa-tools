@@ -68,6 +68,7 @@ global.broadcast = broadcast;
 // Routes
 app.use('/api/run', require('./routes/run'));
 app.use('/api/config', require('./routes/config'));
+app.use('/api/settings', require('./routes/settings'));
 
 // Health check
 app.get('/health', (req, res) => res.json({ ok: true }));

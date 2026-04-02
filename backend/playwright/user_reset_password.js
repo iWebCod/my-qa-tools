@@ -14,6 +14,6 @@ module.exports = async function user_reset_password({ config, params, log, runId
     log('success', `Пароль пользователя ${params.login} сброшен`);
     return { reset: true, login: params.login };
   } catch (err) { await screenshotOnError(page, log); throw err; }
-  finally { await closeSession(browser); }
+  finally { await closeSession(browser, runId); }
 };
 

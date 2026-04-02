@@ -32,7 +32,7 @@ module.exports = async function user_block({ config, params, log, runId }) {
     await screenshotOnError(page, log);
     throw err;
   } finally {
-    await closeSession(browser);
+    await closeSession(browser, runId);
   }
 };
 

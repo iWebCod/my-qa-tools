@@ -3,26 +3,26 @@ const router = express.Router();
 const { v4: uuidv4 } = require('uuid');
 const { getConfig } = require('./config');
 
-// Playwright scenario runners
-const scenarios = {
-  'org.create': require('../playwright/org_create'),
-  'user.create': require('../playwright/user_create'),
-  'user.block': require('../playwright/user_block'),
-  'user.unblock': require('../playwright/user_unblock'),
-  'user.reset_password': require('../playwright/user_reset_password'),
-  'user.export': require('../playwright/user_export'),
-  'profile.block': require('../playwright/profile_block'),
-  'profile.unblock': require('../playwright/profile_unblock'),
-  'profile.assign_role': require('../playwright/profile_assign_role'),
-  'profile.remove_role': require('../playwright/profile_remove_role'),
-  'ticket.create': require('../playwright/ticket_create'),
-  'ticket.approve': require('../playwright/ticket_approve'),
-  'ticket.reject': require('../playwright/ticket_reject'),
-  'org.export': require('../playwright/org_export'),
-  'profile.export': require('../playwright/profile_export'),
-  'ticket.export': require('../playwright/ticket_export'),
-  'user.register_authorized': require('../playwright/user_register_authorized'),
-  'user.register_api': require('../playwright/user_register_api'),
+// Playwright scenario runners (lazy-loaded to allow server start without Playwright)
+const scenarioPaths = {
+  'org.create': '../playwright/org_create',
+  'user.create': '../playwright/user_create',
+  'user.block': '../playwright/user_block',
+  'user.unblock': '../playwright/user_unblock',
+  'user.reset_password': '../playwright/user_reset_password',
+  'user.export': '../playwright/user_export',
+  'profile.block': '../playwright/profile_block',
+  'profile.unblock': '../playwright/profile_unblock',
+  'profile.assign_role': '../playwright/profile_assign_role',
+  'profile.remove_role': '../playwright/profile_remove_role',
+  'ticket.create': '../playwright/ticket_create',
+  'ticket.approve': '../playwright/ticket_approve',
+  'ticket.reject': '../playwright/ticket_reject',
+  'org.export': '../playwright/org_export',
+  'profile.export': '../playwright/profile_export',
+  'ticket.export': '../playwright/ticket_export',
+  'user.register_authorized': '../playwright/user_register_authorized',
+  'user.register_api': '../playwright/user_register_api',
 };
 
 // Active runs
@@ -125,10 +125,17 @@ router.post('/stop/:runId', async (req, res) => {
 
 router.post('/:scenario', async (req, res) => {
   const { scenario } = req.params;
-  const runner = scenarios[scenario];
+  const scenarioPath = scenarioPaths[scenario];
 
-  if (!runner) {
+  if (!scenarioPath) {
     return res.status(404).json({ error: `Unknown scenario: ${scenario}` });
+  }
+
+  let runner;
+  try {
+    runner = require(scenarioPath);
+  } catch (err) {
+    return res.status(500).json({ error: `Failed to load scenario: ${err.message}` });
   }
 
   const config = getConfig();

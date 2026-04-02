@@ -29,6 +29,16 @@ const runs = new Map();
 const runBrowsers = new Map();
 const runCancelers = new Map();
 
+function pruneRuns() {
+  const maxRuns = getConfig().maxRuns || 200;
+  if (runs.size <= maxRuns) return;
+  const finished = [...runs.entries()]
+    .filter(([, r]) => ['success', 'error', 'stopped'].includes(r.status))
+    .sort((a, b) => (a[1].finishedAt < b[1].finishedAt ? -1 : 1));
+  const toRemove = runs.size - maxRuns;
+  finished.slice(0, toRemove).forEach(([id]) => runs.delete(id));
+}
+
 function nowIso() {
   return new Date().toISOString();
 }
@@ -200,6 +210,7 @@ router.post('/:scenario', async (req, res) => {
   } finally {
     runBrowsers.delete(runId);
     runCancelers.delete(runId);
+    pruneRuns();
   }
 });
 

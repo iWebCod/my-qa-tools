@@ -14,6 +14,6 @@ module.exports = async function user_unblock({ config, params, log, runId }) {
     log('success', `Пользователь ${params.login} разблокирован`);
     return { unblocked: true, login: params.login };
   } catch (err) { await screenshotOnError(page, log); throw err; }
-  finally { await closeSession(browser); }
+  finally { await closeSession(browser, runId); }
 };
 

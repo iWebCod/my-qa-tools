@@ -1313,12 +1313,27 @@ function UsersPage({runScenario,running,prefill}){
     const saved=lsGet(LS_REG_ORG,{});
     return {orgUuid:saved.orgUuid||'',lastName:'',firstName:'',middleName:'',birthday:'',inn:'',snils:'',login:'',personalEmail:'',workEmail:''};
   });
+  const [bulkCount,setBulkCount]=useState(1);
+  const [bulkProgress,setBulkProgress]=useState(null); // {done,total} or null
   const [blockForm,setBlockForm]=useState({login:'',blockType:'temporary',reason:''});
   const [resetForm,setResetForm]=useState({login:''});
   const setOrgField=(field)=>e=>{const val=e.target.value;setRegForm(f=>{const next={...f,[field]:val};lsSet(LS_REG_ORG,{orgUuid:next.orgUuid});return next;});};
   const regenerateRegForm=()=>{const p=generatePerson();setRegForm(f=>({...f,lastName:p.lastName||'',firstName:p.firstName||'',middleName:p.middleName||'',birthday:p.birthday||'',inn:p.inn||'',snils:p.snils||'',login:p.login||'',personalEmail:p.email||'',workEmail:p.email||''}));};
   const f=(form,setForm)=>(field)=>e=>setForm({...form,[field]:e.target.value});
   const fr=f(regForm,setRegForm);
+  const handleBulkRegister=async()=>{
+    const count=Math.max(1,Math.min(50,Number(bulkCount)||1));
+    if(count===1){runScenario('user.register_api',regForm);return;}
+    setBulkProgress({done:0,total:count});
+    for(let i=0;i<count;i++){
+      const p=generatePerson();
+      const params={...regForm,lastName:p.lastName,firstName:p.firstName,middleName:p.middleName,
+        birthday:p.birthday,inn:p.inn,snils:p.snils,login:p.login,personalEmail:p.email,workEmail:p.email};
+      await runScenario('user.register_api',params);
+      setBulkProgress({done:i+1,total:count});
+    }
+    setBulkProgress(null);
+  };
   return (
     <div className="panel">
       <div className="panel-header"><div className="panel-title">Пользователи</div><div className="panel-sub">Управление учётными записями XIDBOX</div></div>
@@ -1340,10 +1355,17 @@ function UsersPage({runScenario,running,prefill}){
           <div className="form-group"><label className="form-label">Рабочий email</label><input className="form-input" type="email" placeholder="ivanov@work.com" value={regForm.workEmail} onChange={fr('workEmail')} /></div>
         </div>
         <div className="btn-row">
-          <button className="btn btn-secondary" disabled={!!running} onClick={regenerateRegForm}>↺ Перегенерировать (без сброса орг.)</button>
-          <button className="btn btn-primary" disabled={!!running} onClick={()=>runScenario('user.register_api', regForm)}>
-            {running==='user.register_api'?<><div className="spinner"/>&nbsp;Выполняется...</>:'▶ Зарегистрировать пользователя'}
-          </button>
+          <button className="btn btn-secondary" disabled={!!running||!!bulkProgress} onClick={regenerateRegForm}>↺ Перегенерировать (без сброса орг.)</button>
+          <div style={{display:'flex',alignItems:'center',gap:8}}>
+            <label style={{fontSize:12,color:'var(--text3)',whiteSpace:'nowrap'}}>Кол-во:</label>
+            <input type="number" min="1" max="50" value={bulkCount} onChange={e=>setBulkCount(Math.max(1,Math.min(50,Number(e.target.value)||1)))}
+              style={{width:60,padding:'6px 8px',background:'var(--surface2)',border:'1px solid var(--border)',borderRadius:6,color:'var(--text)',fontSize:13}} />
+            <button className="btn btn-primary" disabled={!!running||!!bulkProgress} onClick={handleBulkRegister}>
+              {bulkProgress?<><div className="spinner"/>&nbsp;{bulkProgress.done}/{bulkProgress.total}…</>
+               :running==='user.register_api'?<><div className="spinner"/>&nbsp;Выполняется...</>
+               :`▶ Зарегистрировать${bulkCount>1?` (${bulkCount})`:''}` }
+            </button>
+          </div>
         </div>
       </div>
       <div className="card">
@@ -1536,8 +1558,8 @@ function RbacPage(){
 const CHAINS = [
   {
     id: 'org_then_user',
-    label: 'Создать орг → создать пользователя',
-    desc: 'Создаёт организацию из org1, затем регистрирует пользователя из person1 в ней',
+    label: 'Создать орг → зарегистрировать пользователя',
+    desc: 'Создаёт организацию из org1, затем регистрирует пользователя из person1 через API (UUID передаётся автоматически)',
     steps: [
       {
         scenarioId: 'org.create',
@@ -1549,12 +1571,13 @@ const CHAINS = [
         } : {},
       },
       {
-        scenarioId: 'user.create',
-        label: 'Создать пользователя в организации',
-        getParams: (b) => b?.person1&&b?.org1 ? {
-          login: b.person1.login, email: b.person1.email,
+        scenarioId: 'user.register_api',
+        label: 'Зарегистрировать пользователя через API',
+        getParams: (b, r) => b?.person1 ? {
+          orgUuid: r[0]?.uuid || '',
+          login: b.person1.login, personalEmail: b.person1.email, workEmail: b.person1.email,
           lastName: b.person1.lastName, firstName: b.person1.firstName, middleName: b.person1.middleName,
-          organizationName: b.org1.shortName,
+          birthday: b.person1.birthday, inn: b.person1.inn, snils: b.person1.snils,
         } : {},
       },
     ]
@@ -1581,7 +1604,7 @@ const CHAINS = [
   {
     id: 'org_user_profile',
     label: 'Орг → Пользователь → Профиль',
-    desc: 'Полный онбординг: создать орг, пользователя, зарегистрировать профиль в орг',
+    desc: 'Полный онбординг: создать орг, зарегистрировать пользователя через API (UUID передаётся автоматически), профиль',
     steps: [
       {
         scenarioId: 'org.create',
@@ -1593,19 +1616,20 @@ const CHAINS = [
         } : {},
       },
       {
-        scenarioId: 'user.create',
-        label: 'Создать пользователя',
-        getParams: (b) => b?.person1&&b?.org1 ? {
-          login: b.person1.login, email: b.person1.email,
+        scenarioId: 'user.register_api',
+        label: 'Зарегистрировать пользователя через API',
+        getParams: (b, r) => b?.person1 ? {
+          orgUuid: r[0]?.uuid || '',
+          login: b.person1.login, personalEmail: b.person1.email, workEmail: b.person1.email,
           lastName: b.person1.lastName, firstName: b.person1.firstName, middleName: b.person1.middleName,
-          organizationName: b.org1.shortName,
+          birthday: b.person1.birthday, inn: b.person1.inn, snils: b.person1.snils,
         } : {},
       },
       {
         scenarioId: 'profile.create',
         label: 'Зарегистрировать профиль',
-        getParams: (b) => b?.person1&&b?.org1 ? {
-          login: b.person1.login, organizationName: b.org1.shortName,
+        getParams: (b, r) => b?.person1 ? {
+          login: b.person1.login, organizationName: b.org1?.shortName, orgUuid: r[0]?.uuid || '',
         } : {},
       },
     ]
@@ -1628,12 +1652,13 @@ function ChainPage({ apiPostFn, bundles, addLog, waitForRunDone }){
     setChainState(prev => ({ ...prev, [cid]: { status: 'running', steps: {} } }));
     addLog({ level: 'info', message: `⛓ Цепочка [${chain.label}] запущена`, ts: new Date().toISOString() });
 
+    const stepResults = [];
     for (let i = 0; i < chain.steps.length; i++) {
       const step = chain.steps[i];
       updStep(cid, i, 'running');
       addLog({ level: 'info', message: `  [${i+1}/${chain.steps.length}] ${step.label}…`, ts: new Date().toISOString() });
       try {
-        const params = step.getParams(bundles);
+        const params = step.getParams(bundles, stepResults);
         const started = await apiPostFn(`/api/run/${step.scenarioId}`, { params });
         const runId = started?.runId;
         if (!runId) throw new Error('runId не получен от backend');
@@ -1644,6 +1669,7 @@ function ChainPage({ apiPostFn, bundles, addLog, waitForRunDone }){
           throw new Error(reason);
         }
 
+        stepResults.push(done.result || {});
         updStep(cid, i, 'done');
         addLog({ level: 'success', message: `  ✓ ${step.label}`, ts: new Date().toISOString() });
       } catch (err) {
@@ -1832,6 +1858,7 @@ function HistoryPage({ history, clearHistory }) {
             { h.status === 'error'   && <span className="pill" style={{ background:'rgba(231,76,60,.12)',color:'var(--error)',border:'1px solid rgba(231,76,60,.3)',fontSize:10 }}>✗ Ошибка</span> }
             { h.status === 'stopped' && <span className="pill" style={{ background:'rgba(243,156,18,.14)',color:'var(--warn)',border:'1px solid rgba(243,156,18,.35)',fontSize:10 }}>■ Остановлено</span> }
             { h.chain && <span className="pill pill-info" style={{ fontSize: 10 }}>⛓ {h.chain}</span> }
+            { h.durationMs != null && <span style={{ fontSize: 10, color: 'var(--text3)', fontFamily: 'var(--mono)' }}>{(h.durationMs/1000).toFixed(1)}s</span> }
             <button
               onClick={() => copyRow(h)}
               style={{ marginLeft: 'auto', background: 'none', border: '1px solid var(--border)', borderRadius: 5, color: 'var(--text3)', cursor: 'pointer', fontSize: 11, padding: '2px 8px' }}
@@ -2049,7 +2076,7 @@ function App(){
           const meta = runMetaRef.current[msg.runId];
           if (meta) {
             const status = msg.status === 'success' ? 'success' : (msg.status === 'stopped' ? 'stopped' : 'error');
-            addHistory(meta.scenario, meta.params, status);
+            addHistory(meta.scenario, meta.params, status, msg.durationMs);
             delete runMetaRef.current[msg.runId];
           }
         }
@@ -2090,8 +2117,8 @@ function App(){
     document.addEventListener('mouseup',onUp);
   };
 
-  const addHistory=(scenario,params,status)=>{
-    const entry={scenario,params,status,env:activeEnv.label||activeEnvId,ts:new Date().toISOString()};
+  const addHistory=(scenario,params,status,durationMs)=>{
+    const entry={scenario,params,status,env:activeEnv.label||activeEnvId,ts:new Date().toISOString(),...(durationMs!=null?{durationMs}:{})};
     setHistory(prev=>{const upd=[...prev.slice(-499),entry];lsSet(LS_HISTORY,upd);return upd;});
   };
 

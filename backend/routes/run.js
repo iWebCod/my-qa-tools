@@ -156,12 +156,14 @@ router.post('/:scenario', async (req, res) => {
 
   res.json({ runId });
 
+  const startedAt = nowIso();
   updateRun(runId, {
     status: 'running',
-    startedAt: nowIso(),
+    startedAt,
   });
 
   // Run async, stream logs via WS
+  const startMs = Date.now();
   const log = (level, message, data = null) => {
     const entry = { runId, scenario, level, message, data, ts: nowIso() };
     global.broadcast({ type: 'log', ...entry });
@@ -171,43 +173,49 @@ router.post('/:scenario', async (req, res) => {
     log('info', `▶ Запуск сценария: ${scenario}`);
     const result = await runner({ config, params, log, runId });
     const run = runs.get(runId);
+    const durationMs = Date.now() - startMs;
 
     if (run?.stopRequested) {
       updateRun(runId, {
         status: 'stopped',
         finishedAt: nowIso(),
+        durationMs,
       });
       log('warn', '■ Сценарий остановлен пользователем');
-      global.broadcast({ type: 'done', runId, scenario, status: 'stopped' });
+      global.broadcast({ type: 'done', runId, scenario, status: 'stopped', durationMs });
       return;
     }
 
     updateRun(runId, {
       status: 'success',
       finishedAt: nowIso(),
+      durationMs,
       result,
     });
-    log('success', '✓ Сценарий завершён успешно', result);
-    global.broadcast({ type: 'done', runId, scenario, status: 'success', result });
+    log('success', `✓ Сценарий завершён успешно (${(durationMs/1000).toFixed(1)}s)`, result);
+    global.broadcast({ type: 'done', runId, scenario, status: 'success', result, durationMs });
   } catch (err) {
     const run = runs.get(runId);
+    const durationMs = Date.now() - startMs;
     if (run?.stopRequested) {
       updateRun(runId, {
         status: 'stopped',
         finishedAt: nowIso(),
+        durationMs,
       });
       log('warn', '■ Сценарий остановлен пользователем');
-      global.broadcast({ type: 'done', runId, scenario, status: 'stopped' });
+      global.broadcast({ type: 'done', runId, scenario, status: 'stopped', durationMs });
       return;
     }
 
     updateRun(runId, {
       status: 'error',
       finishedAt: nowIso(),
+      durationMs,
       error: err.message,
     });
-    log('error', `✗ Ошибка: ${err.message}`);
-    global.broadcast({ type: 'done', runId, scenario, status: 'error', error: err.message });
+    log('error', `✗ Ошибка: ${err.message} (${(durationMs/1000).toFixed(1)}s)`);
+    global.broadcast({ type: 'done', runId, scenario, status: 'error', error: err.message, durationMs });
   } finally {
     runBrowsers.delete(runId);
     runCancelers.delete(runId);
